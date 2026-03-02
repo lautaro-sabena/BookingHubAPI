@@ -1,11 +1,5 @@
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\.msCoverageSourceRootsMapping_BookingHubAPI.UnitTests
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\CoverletSourceRootsMapping_BookingHubAPI.UnitTests
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.csproj.AssemblyReference.cache
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.AssemblyInfoInputs.cache
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.AssemblyInfo.cs
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.csproj.CoreCompileInputs.cache
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.sourcelink.json
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\testhost.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\testhost.exe
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\xunit.runner.visualstudio.testadapter.dll
@@ -146,6 +140,12 @@ C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\Book
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\BookingHubAPI.Domain.pdb
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\BookingHubAPI.Application.pdb
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\bin\Debug\net9.0\BookingHubAPI.Infrastructure.pdb
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.csproj.AssemblyReference.cache
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.AssemblyInfoInputs.cache
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.AssemblyInfo.cs
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.csproj.CoreCompileInputs.cache
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.sourcelink.json
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingH.5D24401F.Up2Date
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\BookingHubAPI.UnitTests.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.UnitTests\obj\Debug\net9.0\refint\BookingHubAPI.UnitTests.dll
