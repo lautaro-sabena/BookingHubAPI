@@ -35,8 +35,8 @@
               "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Application\\BookingHubAPI.Application.csproj": {
                 "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Application\\BookingHubAPI.Application.csproj"
               },
-              "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
-                "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
+              "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
+                "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
               },
               "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
                 "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj"
@@ -92,7 +92,7 @@
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
-              "version": "[10.1.4, )"
+              "version": "[7.2.0, )"
             }
           },
           "imports": [
@@ -146,8 +146,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
-                "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
+              "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
+                "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
               }
             }
           }
@@ -193,14 +193,14 @@
         }
       }
     },
-    "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
+    "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
+        "projectUniqueName": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
         "projectName": "BookingHubAPI.Domain",
-        "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
+        "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
         "packagesPath": "C:\\Users\\lauta\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\obj\\",
+        "outputPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -289,8 +289,8 @@
               "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Application\\BookingHubAPI.Application.csproj": {
                 "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Application\\BookingHubAPI.Application.csproj"
               },
-              "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
-                "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
+              "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
+                "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
               }
             }
           }
