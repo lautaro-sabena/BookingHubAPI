@@ -64,16 +64,16 @@
 
 ## Phase 4: Testing
 
-- [ ] 4.1 Create test project `BookingHubAPI.UnitTests.csproj`
-- [ ] 4.2 Write unit tests for `ReservationConflictDetector` (spec scenarios)
-- [ ] 4.3 Write unit tests for `User` entity validation
-- [ ] 4.4 Write unit tests for `CreateReservationUseCase`
-- [ ] 4.5 Write unit tests for `RegisterUseCase` (duplicate email, weak password)
-- [ ] 4.6 Write unit tests for `GetAvailableSlotsUseCase`
-- [ ] 4.7 Create integration test project `BookingHubAPI.IntegrationTests.csproj`
-- [ ] 4.8 Write integration test for `POST /api/auth/register` returns 200 + token
-- [ ] 4.9 Write integration test for `POST /api/auth/login` success case
-- [ ] 4.10 Write integration test for `POST /api/auth/login` invalid credentials
+- [x] 4.1 Create test project `BookingHubAPI.UnitTests.csproj`
+- [x] 4.2 Write unit tests for `ReservationConflictDetector` (spec scenarios)
+- [x] 4.3 Write unit tests for `User` entity validation
+- [x] 4.4 Write unit tests for `CreateReservationUseCase`
+- [x] 4.5 Write unit tests for `RegisterUseCase` (duplicate email, weak password)
+- [x] 4.6 Write unit tests for `GetAvailableSlotsUseCase`
+- [x] 4.7 Create integration test project `BookingHubAPI.IntegrationTests.csproj`
+- [x] 4.8 Write integration test for `POST /api/auth/register` returns 200 + token
+- [x] 4.9 Write integration test for `POST /api/auth/login` success case
+- [x] 4.10 Write integration test for `POST /api/auth/login` invalid credentials
 - [ ] 4.11 Write integration test for `GET /api/services` with pagination
 - [ ] 4.12 Write integration test for `POST /api/reservations` creates reservation
 - [ ] 4.13 Write integration test for `POST /api/reservations` returns conflict on double-book
@@ -81,10 +81,10 @@
 
 ## Phase 5: Polish & Verification
 
-- [ ] 5.1 Run `dotnet build` and fix any compilation errors
+- [x] 5.1 Run `dotnet build` and fix any compilation errors
 - [ ] 5.2 Run `docker-compose up --build` and verify API starts
 - [ ] 5.3 Verify health check endpoint returns healthy
-- [ ] 5.4 Run all unit tests: `dotnet test --filter Category=Unit`
+- [x] 5.4 Run all unit tests: `dotnet test --filter Category=Unit`
 - [ ] 5.5 Run all integration tests: `dotnet test --filter Category=Integration`
 - [ ] 5.6 Add rate limiting configuration in Program.cs
 - [ ] 5.7 Verify JWT authentication on protected endpoints
