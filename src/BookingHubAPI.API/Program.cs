@@ -10,6 +10,7 @@ using System.Text;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using AutoMapper;
+using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +31,14 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddAutoMapper(typeof(Program));
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? "ThisIsASecretKeyForDevelopment12345678";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
@@ -69,6 +78,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
+
+app.UseIpRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -474,3 +474,5 @@ C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\obj\Debug\net9
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\obj\Debug\net9.0\BookingHubAPI.IntegrationTests.pdb
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\obj\Debug\net9.0\BookingHubAPI.IntegrationTests.genruntimeconfig.cache
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\obj\Debug\net9.0\ref\BookingHubAPI.IntegrationTests.dll
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\rate-limit.json
+C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\AspNetCoreRateLimit.dll

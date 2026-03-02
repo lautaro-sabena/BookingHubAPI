@@ -86,6 +86,6 @@
 - [ ] 5.3 Verify health check endpoint returns healthy
 - [x] 5.4 Run all unit tests: `dotnet test --filter Category=Unit`
 - [ ] 5.5 Run all integration tests: `dotnet test --filter Category=Integration`
-- [ ] 5.6 Add rate limiting configuration in Program.cs
+- [x] 5.6 Add rate limiting configuration in Program.cs
 - [ ] 5.7 Verify JWT authentication on protected endpoints
 - [ ] 5.8 Test end-to-end booking flow (register → create company → create service → book)
