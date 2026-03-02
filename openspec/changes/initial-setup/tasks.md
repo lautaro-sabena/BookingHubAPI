@@ -21,45 +21,45 @@
 - [x] 1.17 Create `Application/DTOs/ReservationDTOs.cs`
 - [x] 1.18 Create `Application/DTOs/AvailabilityDTOs.cs`
 - [x] 1.19 Create `Application/Mappings/MappingProfile.cs` with AutoMapper config
-- [ ] 1.20 Create Infrastructure project `BookingHubAPI.Infrastructure.csproj`
-- [ ] 1.21 Create `Infrastructure/Data/BookingDbContext.cs` with OnModelCreating
-- [ ] 1.22 Create `Infrastructure/Data/Configurations/*.cs` (entity configs)
-- [ ] 1.23 Create `Infrastructure/Repositories/UserRepository.cs`
-- [ ] 1.24 Create `Infrastructure/Repositories/CompanyRepository.cs`
-- [ ] 1.25 Create `Infrastructure/Repositories/ServiceRepository.cs`
-- [ ] 1.26 Create `Infrastructure/Repositories/ReservationRepository.cs`
-- [ ] 1.27 Create `Infrastructure/Auth/JwtService.cs` (generate/validate tokens)
-- [ ] 1.28 Create `Infrastructure/Services/NotificationService.cs` (mock email/log)
+- [x] 1.20 Create Infrastructure project `BookingHubAPI.Infrastructure.csproj`
+- [x] 1.21 Create `Infrastructure/Data/BookingDbContext.cs` with OnModelCreating
+- [x] 1.22 Create `Infrastructure/Data/Configurations/*.cs` (entity configs)
+- [x] 1.23 Create `Infrastructure/Repositories/UserRepository.cs`
+- [x] 1.24 Create `Infrastructure/Repositories/CompanyRepository.cs`
+- [x] 1.25 Create `Infrastructure/Repositories/ServiceRepository.cs`
+- [x] 1.26 Create `Infrastructure/Repositories/ReservationRepository.cs`
+- [x] 1.27 Create `Infrastructure/Auth/JwtService.cs` (generate/validate tokens)
+- [x] 1.28 Create `Infrastructure/Services/NotificationService.cs` (mock email/log)
 
 ## Phase 2: Core Implementation
 
-- [ ] 2.1 Create API project `BookingHubAPI.API.csproj`
-- [ ] 2.2 Create `API/Program.cs` with DI, DbContext, JWT auth, FluentValidation
-- [ ] 2.3 Create `API/Controllers/AuthController.cs` with Register, Login endpoints
-- [ ] 2.4 Create `API/Controllers/CompaniesController.cs` with CRUD endpoints
-- [ ] 2.5 Create `API/Controllers/ServicesController.cs` with CRUD + pagination
-- [ ] 2.6 Create `API/Controllers/ReservationsController.cs` with booking, confirm, cancel
-- [ ] 2.7 Create `API/Controllers/AvailabilityController.cs` with slot generation
-- [ ] 2.8 Create `API/Middleware/ErrorHandlingMiddleware.cs` for global error handling
+- [x] 2.1 Create API project `BookingHubAPI.API.csproj`
+- [x] 2.2 Create `API/Program.cs` with DI, DbContext, JWT auth, FluentValidation
+- [x] 2.3 Create `API/Controllers/AuthController.cs` with Register, Login endpoints
+- [x] 2.4 Create `API/Controllers/CompaniesController.cs` with CRUD endpoints
+- [x] 2.5 Create `API/Controllers/ServicesController.cs` with CRUD + pagination
+- [x] 2.6 Create `API/Controllers/ReservationsController.cs` with booking, confirm, cancel
+- [x] 2.7 Create `API/Controllers/AvailabilityController.cs` with slot generation
+- [x] 2.8 Create `API/Middleware/ErrorHandlingMiddleware.cs` for global error handling
 - [ ] 2.9 Create `API/Filters/ValidateModelAttribute.cs`
 - [ ] 2.10 Create `API/Extensions/ServiceCollectionExtensions.cs`
 - [ ] 2.11 Add FluentValidation validators in Application layer
-- [ ] 2.12 Implement multi-tenant query filter in DbContext
-- [ ] 2.13 Create `Application/UseCases/Auth/RegisterUseCase.cs`
-- [ ] 2.14 Create `Application/UseCases/Auth/LoginUseCase.cs`
-- [ ] 2.15 Create `Application/UseCases/Companies/CreateCompanyUseCase.cs`
-- [ ] 2.16 Create `Application/UseCases/Reservations/CreateReservationUseCase.cs` with conflict detection
-- [ ] 2.17 Create `Application/UseCases/Reservations/ConfirmReservationUseCase.cs`
-- [ ] 2.18 Create `Application/UseCases/Reservations/CancelReservationUseCase.cs`
-- [ ] 2.19 Create `Application/UseCases/Availability/GetAvailableSlotsUseCase.cs`
-- [ ] 2.20 Add health check endpoint in Program.cs
+- [x] 2.12 Implement multi-tenant query filter in DbContext (handled at controller level)
+- [ ] 2.13 Create `Application/UseCases/Auth/RegisterUseCase.cs` (simplified - logic in controller)
+- [ ] 2.14 Create `Application/UseCases/Auth/LoginUseCase.cs` (simplified - logic in controller)
+- [ ] 2.15 Create `Application/UseCases/Companies/CreateCompanyUseCase.cs` (simplified - logic in controller)
+- [ ] 2.16 Create `Application/UseCases/Reservations/CreateReservationUseCase.cs` with conflict detection (simplified - logic in controller)
+- [ ] 2.17 Create `Application/UseCases/Reservations/ConfirmReservationUseCase.cs` (simplified - logic in controller)
+- [ ] 2.18 Create `Application/UseCases/Reservations/CancelReservationUseCase.cs` (simplified - logic in controller)
+- [ ] 2.19 Create `Application/UseCases/Availability/GetAvailableSlotsUseCase.cs` (simplified - logic in controller)
+- [x] 2.20 Add health check endpoint in Program.cs
 
 ## Phase 3: Docker & Configuration
 
-- [ ] 3.1 Create `docker-compose.yml` with API and SQL Server services
-- [ ] 3.2 Add `Dockerfile` for API container
-- [ ] 3.3 Add `appsettings.json` and `appsettings.Development.json`
-- [ ] 3.4 Add connection string for SQL Server in Docker
+- [x] 3.1 Create `docker-compose.yml` with API and SQL Server services
+- [x] 3.2 Add `Dockerfile` for API container
+- [x] 3.3 Add `appsettings.json` and `appsettings.Development.json`
+- [x] 3.4 Add connection string for SQL Server in Docker
 - [ ] 3.5 Create `scripts/init-db.sql` for initial setup (optional)
 
 ## Phase 4: Testing
