@@ -1,4 +1,6 @@
-﻿namespace BookingHubAPI.IntegrationTests;
+using Xunit;
+
+namespace BookingHubAPI.IntegrationTests;
 
 public class UnitTest1
 {

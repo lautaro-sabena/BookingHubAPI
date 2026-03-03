@@ -19,10 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\BookingHubAPI.API\BookingHubAPI.API.csproj" />
   </ItemGroup>
 

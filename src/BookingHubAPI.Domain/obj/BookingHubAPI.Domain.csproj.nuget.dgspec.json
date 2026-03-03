@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {}
+    "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {}
   },
   "projects": {
-    "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
+    "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
         "projectName": "BookingHubAPI.Domain",
-        "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
+        "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj",
         "packagesPath": "C:\\Users\\lauta\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\obj\\",
+        "outputPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

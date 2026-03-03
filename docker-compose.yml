@@ -36,5 +36,18 @@ services:
       - sqlserver
     restart: on-failure
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bookinghub_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: on-failure
+
 volumes:
   sqlserver_data:

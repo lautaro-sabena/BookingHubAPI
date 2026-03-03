@@ -38,8 +38,8 @@
               "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj": {
                 "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Domain\\BookingHubAPI.Domain.csproj"
               },
-              "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
-                "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj"
+              "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
+                "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj"
               }
             }
           }
@@ -76,10 +76,6 @@
               "target": "Package",
               "version": "[11.3.1, )"
             },
-            "Microsoft.AspNetCore.OpenApi": {
-              "target": "Package",
-              "version": "[9.0.6, )"
-            },
             "Microsoft.EntityFrameworkCore.Tools": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
               "suppressParent": "All",
@@ -89,10 +85,6 @@
             "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": {
               "target": "Package",
               "version": "[9.0.0, )"
-            },
-            "Swashbuckle.AspNetCore": {
-              "target": "Package",
-              "version": "[10.1.4, )"
             }
           },
           "imports": [
@@ -258,14 +250,14 @@
         }
       }
     },
-    "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
+    "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
+        "projectUniqueName": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
         "projectName": "BookingHubAPI.Infrastructure",
-        "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
+        "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\lauta\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\obj\\",
+        "outputPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

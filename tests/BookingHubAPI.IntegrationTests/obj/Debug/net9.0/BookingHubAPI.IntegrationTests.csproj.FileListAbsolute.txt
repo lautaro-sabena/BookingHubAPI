@@ -329,7 +329,6 @@ C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\FluentValidation.DependencyInjectionExtensions.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.AspNetCore.Mvc.Testing.dll
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.AspNetCore.OpenApi.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.AspNetCore.TestHost.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.Bcl.AsyncInterfaces.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.VisualStudio.CodeCoverage.Shim.dll
@@ -362,9 +361,6 @@ C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.VisualStudio.TestPlatform.Common.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Microsoft.Win32.SystemEvents.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Newtonsoft.Json.dll
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Swashbuckle.AspNetCore.Swagger.dll
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerGen.dll
-C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\Swashbuckle.AspNetCore.SwaggerUI.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\System.ClientModel.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\System.Configuration.ConfigurationManager.dll
 C:\Users\lauta\BookingHubAPI\tests\BookingHubAPI.IntegrationTests\bin\Debug\net9.0\System.Drawing.Common.dll
