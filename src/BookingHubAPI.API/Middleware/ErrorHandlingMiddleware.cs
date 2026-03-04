@@ -53,6 +53,14 @@ public class ErrorHandlingMiddleware
 
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)code;
+        
+        var origin = context.Request.Headers["Origin"].ToString();
+        if (!string.IsNullOrEmpty(origin))
+        {
+            context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+            context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS";
+            context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
+        }
 
         return context.Response.WriteAsync(result);
     }

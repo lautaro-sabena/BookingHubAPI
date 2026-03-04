@@ -67,15 +67,12 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:3000",
-            "http://localhost:3001"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials();
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .SetIsOriginAllowed((host) => true);
     });
 });
 
@@ -97,9 +94,13 @@ if (app.Environment.IsDevelopment())
 {
 }
 
+// app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
+
+app.UseMiddleware<BookingHubAPI.API.Middleware.CorsMiddleware>();
+
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
-app.UseCors("Frontend");
+app.UseRouting();
 
 app.UseIpRateLimiting();
 

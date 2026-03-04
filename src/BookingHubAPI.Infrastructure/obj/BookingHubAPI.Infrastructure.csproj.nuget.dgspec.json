@@ -1,7 +1,7 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {}
+    "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {}
   },
   "projects": {
     "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Application\\BookingHubAPI.Application.csproj": {
@@ -144,14 +144,14 @@
         }
       }
     },
-    "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
+    "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
         "projectName": "BookingHubAPI.Infrastructure",
-        "projectPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
+        "projectPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\BookingHubAPI.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\lauta\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\obj\\",
+        "outputPath": "C:\\Users\\lauta\\BookingHubAPI\\src\\BookingHubAPI.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
