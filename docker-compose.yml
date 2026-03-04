@@ -6,18 +6,12 @@ services:
     container_name: bookinghub_sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=Str0ngP@ssw0rd!
+      - SA_PASSWORD=Password123!
       - MSSQL_PID=Developer
     ports:
       - "1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
-    healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "Str0ngP@ssw0rd!" -Q "SELECT 1" || exit 1
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
 
   api:
     build:
@@ -26,10 +20,11 @@ services:
     container_name: bookinghub_api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=BookingHubDB;User Id=sa;Password=Str0ngP@ssw0rd!;TrustServerCertificate=True
-      - Jwt__SecretKey=ThisIsASecretKeyForDevelopment12345678
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=BookingHubDB;User Id=sa;Password=Password123!;TrustServerCertificate=True
+      - Jwt__SecretKey=DevSecretKey1234567890123456789012
       - Jwt__Issuer=BookingHubAPI
       - Jwt__Audience=BookingHubAPI
+      - Cors__AllowedOrigins=http://localhost:3000,http://localhost:5173
     ports:
       - "5000:8080"
     depends_on:
@@ -42,7 +37,7 @@ services:
       dockerfile: Dockerfile
     container_name: bookinghub_frontend
     environment:
-      - NEXT_PUBLIC_API_URL=http://api:8080
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
     ports:
       - "3000:3000"
     depends_on:

@@ -17,5 +17,15 @@ RUN dotnet publish "BookingHubAPI.API.csproj" -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
+
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "BookingHubAPI.API.dll"]
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "BookingHubAPI.API.dll", "--urls", "http://0.0.0.0:8080"]

@@ -14,11 +14,19 @@ using AspNetCoreRateLimit;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
+var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+var connectionString = builder.Configuration["ConnectionStrings:DefaultConnection"] 
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection no configurado");
 builder.Services.AddDbContext<BookingDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString, sqlOptions => 
+        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null)));
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
@@ -39,10 +47,6 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 builder.Services.AddInMemoryRateLimiting();
 
-var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? "ThisIsASecretKeyForDevelopment12345678";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -59,20 +63,31 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtIssuer,
         ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.Zero,
+        ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }
     };
 });
 
 builder.Services.AddAuthorization();
 
+var corsPolicyName = "AllowedOrigins";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy(corsPolicyName, policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .SetIsOriginAllowed((host) => true);
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.SetIsOriginAllowed(_ => false)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
@@ -83,20 +98,23 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+    db.Database.EnsureCreated();
+}
+
+if (!app.Environment.IsDevelopment())
+{
     using (var scope = app.Services.CreateScope())
     {
         var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
         db.Database.Migrate();
     }
 }
-
-if (app.Environment.IsDevelopment())
-{
-}
-
-// app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
-
-app.UseMiddleware<BookingHubAPI.API.Middleware.CorsMiddleware>();
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
@@ -106,6 +124,8 @@ app.UseIpRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseCors(corsPolicyName);
 
 app.MapControllers();
 

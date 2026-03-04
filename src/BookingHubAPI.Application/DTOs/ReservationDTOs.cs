@@ -1,8 +1,12 @@
+using System.ComponentModel.DataAnnotations;
 using BookingHubAPI.Domain.Entities;
 
 namespace BookingHubAPI.Application.DTOs;
 
-public record ReservationRequest(Guid ServiceId, DateTime StartTime, string? Notes);
+public record ReservationRequest(
+    [Required] Guid ServiceId, 
+    [Required] DateTime StartTime, 
+    [MaxLength(500)] string? Notes);
 
 public record ReservationResponse(
     Guid Id,
