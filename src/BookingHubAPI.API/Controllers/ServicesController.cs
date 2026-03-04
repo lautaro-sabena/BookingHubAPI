@@ -66,6 +66,51 @@ public class ServicesController : ControllerBase
         return Ok(new PagedResult<ServiceResponse>(serviceResponses, totalCount, page, pageSize, totalPages));
     }
 
+    [HttpGet("{id}")]
+    public async Task<ActionResult<ServiceResponse>> GetService(Guid id)
+    {
+        var userId = GetUserId();
+        var user = await _userRepository.GetByIdAsync(userId);
+
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        var service = await _serviceRepository.GetByIdAsync(id);
+
+        if (service == null)
+        {
+            return NotFound();
+        }
+
+        if (user.Role == UserRole.Owner && user.CompanyId.HasValue && service.CompanyId == user.CompanyId.Value)
+        {
+            return Ok(new ServiceResponse(
+                service.Id,
+                service.Name,
+                service.Description,
+                service.DurationMinutes,
+                service.Price,
+                service.IsActive,
+                service.CompanyId));
+        }
+
+        if (service.IsActive)
+        {
+            return Ok(new ServiceResponse(
+                service.Id,
+                service.Name,
+                service.Description,
+                service.DurationMinutes,
+                service.Price,
+                service.IsActive,
+                service.CompanyId));
+        }
+
+        return Forbid();
+    }
+
     [HttpPost]
     public async Task<ActionResult<ServiceResponse>> CreateService([FromBody] ServiceRequest request)
     {
