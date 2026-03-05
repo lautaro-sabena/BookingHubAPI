@@ -19,7 +19,7 @@ export default function ServicesPage() {
 
   const fetchServices = async () => {
     try {
-      const response = await api.get<{ items: Service[] }>("/services");
+      const response = await api.get<{ items: Service[] }>("/services/all");
       setServices(response.data.items.filter(s => s.isActive));
     } catch (err) {
       console.error("Failed to fetch services:", err);
@@ -41,10 +41,11 @@ export default function ServicesPage() {
             <Card key={service.id}>
               <CardHeader>
                 <CardTitle>{service.name}</CardTitle>
+                <p className="text-sm text-muted-foreground">{service.companyName}</p>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {service.description || "No description"}
+                  {service.companyDescription || service.description || "No description"}
                 </p>
                 <div className="flex justify-between items-center">
                   <div>

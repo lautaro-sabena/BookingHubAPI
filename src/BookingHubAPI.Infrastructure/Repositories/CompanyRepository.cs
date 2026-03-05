@@ -21,6 +21,13 @@ public class CompanyRepository : ICompanyRepository
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
+    public async Task<Company?> GetByIdWithWorkingHoursAsync(Guid id)
+    {
+        return await _context.Companies
+            .Include(c => c.WorkingHours)
+            .FirstOrDefaultAsync(c => c.Id == id);
+    }
+
     public async Task<Company?> GetByOwnerIdAsync(Guid ownerId)
     {
         return await _context.Companies

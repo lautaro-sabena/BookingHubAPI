@@ -13,13 +13,16 @@ namespace BookingHubAPI.API.Controllers;
 public class AvailabilityController : ControllerBase
 {
     private readonly IServiceRepository _serviceRepository;
+    private readonly ICompanyRepository _companyRepository;
     private readonly IReservationRepository _reservationRepository;
 
     public AvailabilityController(
         IServiceRepository serviceRepository,
+        ICompanyRepository companyRepository,
         IReservationRepository reservationRepository)
     {
         _serviceRepository = serviceRepository;
+        _companyRepository = companyRepository;
         _reservationRepository = reservationRepository;
     }
 
@@ -34,30 +37,38 @@ public class AvailabilityController : ControllerBase
             return NotFound(new { error = "Service not found or inactive" });
         }
 
-        var dayOfWeek = date.DayOfWeek;
-        var slots = new List<AvailableSlotResponse>();
+        var company = await _companyRepository.GetByIdWithWorkingHoursAsync(service.CompanyId);
+        if (company == null || !company.IsActive)
+        {
+            return NotFound(new { error = "Company not found or inactive" });
+        }
 
-        var startHour = 9;
-        var endHour = 17;
+        var dayOfWeek = date.DayOfWeek;
+        var workingHours = company.WorkingHours.FirstOrDefault(wh => wh.DayOfWeek == dayOfWeek && wh.IsActive);
+
+        if (workingHours == null)
+        {
+            return Ok(new List<AvailableSlotResponse>());
+        }
+
+        var slots = new List<AvailableSlotResponse>();
+        var startTime = workingHours.StartTime;
+        var endTime = workingHours.EndTime;
         var slotDuration = service.DurationMinutes;
 
-        for (var hour = startHour; hour < endHour; hour++)
+        var currentSlot = date.Date.Add(startTime);
+        var endDateTime = date.Date.Add(endTime);
+
+        while (currentSlot.AddMinutes(slotDuration) <= endDateTime)
         {
-            for (var minute = 0; minute < 60; minute += slotDuration)
-            {
-                var slotStart = date.Date.AddHours(hour).AddMinutes(minute);
-                var slotEnd = slotStart.AddMinutes(slotDuration);
+            var slotEnd = currentSlot.AddMinutes(slotDuration);
 
-                if (slotEnd > date.Date.AddHours(endHour))
-                {
-                    break;
-                }
+            var hasConflict = await _reservationRepository.HasConflictAsync(
+                service.CompanyId, serviceId, currentSlot, slotEnd);
 
-                var hasConflict = await _reservationRepository.HasConflictAsync(
-                    service.CompanyId, serviceId, slotStart, slotEnd);
+            slots.Add(new AvailableSlotResponse(currentSlot, slotEnd, !hasConflict));
 
-                slots.Add(new AvailableSlotResponse(slotStart, slotEnd, !hasConflict));
-            }
+            currentSlot = currentSlot.AddMinutes(slotDuration);
         }
 
         return Ok(slots.Where(s => s.IsAvailable));

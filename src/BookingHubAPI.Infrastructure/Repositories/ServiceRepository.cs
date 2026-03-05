@@ -19,9 +19,34 @@ public class ServiceRepository : IServiceRepository
         return await _context.Services.FindAsync(id);
     }
 
+    public async Task<Domain.Entities.Service?> GetByIdWithCompanyAsync(Guid id)
+    {
+        return await _context.Services
+            .Include(s => s.Company)
+            .FirstOrDefaultAsync(s => s.Id == id);
+    }
+
+    public async Task<IEnumerable<Domain.Entities.Service>> GetAllActiveAsync(int page, int pageSize)
+    {
+        return await _context.Services
+            .Include(s => s.Company)
+            .Where(s => s.IsActive && s.Company.IsActive)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
+
+    public async Task<int> GetAllActiveCountAsync()
+    {
+        return await _context.Services
+            .Where(s => s.IsActive && s.Company.IsActive)
+            .CountAsync();
+    }
+
     public async Task<IEnumerable<Domain.Entities.Service>> GetByCompanyIdAsync(Guid companyId, int page, int pageSize, string? search = null)
     {
         var query = _context.Services
+            .Include(s => s.Company)
             .Where(s => s.CompanyId == companyId && s.IsActive);
 
         if (!string.IsNullOrWhiteSpace(search))

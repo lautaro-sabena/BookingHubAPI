@@ -42,26 +42,35 @@ export interface Service {
   price: number;
   isActive: boolean;
   companyId: string;
+  companyName: string;
+  companyDescription?: string;
 }
 
 export interface Reservation {
   id: string;
   serviceId: string;
   customerId: string;
+  customerEmail: string;
   companyId: string;
   serviceName: string;
-  customerEmail: string;
+  serviceDuration: number;
   startTime: string;
   endTime: string;
   status: ReservationStatus;
+  notes?: string;
   createdAt: string;
 }
 
 export type ReservationStatus = "Pending" | "Confirmed" | "Cancelled" | "Completed";
 
 export interface Availability {
-  id: string;
-  companyId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isActive: boolean;
+}
+
+export interface WorkingHoursResponse {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
@@ -74,4 +83,10 @@ export interface PagedResult<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface AvailableSlot {
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
 }

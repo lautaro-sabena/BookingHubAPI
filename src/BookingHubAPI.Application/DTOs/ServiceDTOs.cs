@@ -8,7 +8,7 @@ public record ServiceRequest(
     [Required][Range(1, 480)] int DurationMinutes, 
     [Required][Range(0, 99999.99)] decimal Price);
 
-public record ServiceResponse(Guid Id, string Name, string? Description, int DurationMinutes, decimal Price, bool IsActive, Guid CompanyId);
+public record ServiceResponse(Guid Id, string Name, string? Description, int DurationMinutes, decimal Price, bool IsActive, Guid CompanyId, string CompanyName, string? CompanyDescription);
 
 public record ServiceUpdateRequest(
     [MaxLength(100)] string? Name, 

@@ -11,6 +11,7 @@ public record ReservationRequest(
 public record ReservationResponse(
     Guid Id,
     Guid CustomerId,
+    string CustomerEmail,
     Guid ServiceId,
     string ServiceName,
     int ServiceDuration,

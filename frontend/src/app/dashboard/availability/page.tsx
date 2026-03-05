@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/api";
-import { Availability } from "@/types";
+import { WorkingHoursResponse } from "@/types";
 
 const daysOfWeek = [
   { value: 0, label: "Sunday" },
@@ -20,9 +19,16 @@ const daysOfWeek = [
   { value: 6, label: "Saturday" },
 ];
 
+interface DayAvailability {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isActive: boolean;
+}
+
 export default function AvailabilityPage() {
   const { user, isLoading: authLoading } = useAuth();
-  const [availability, setAvailability] = useState<Availability[]>([]);
+  const [availability, setAvailability] = useState<DayAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -41,10 +47,24 @@ export default function AvailabilityPage() {
 
   const fetchAvailability = async () => {
     try {
-      const response = await api.get<Availability[]>("/availability");
-      setAvailability(response.data);
+      const response = await api.get<WorkingHoursResponse[]>("/workinghours");
+      const days = response.data.map((wh: WorkingHoursResponse) => ({
+        dayOfWeek: typeof wh.dayOfWeek === 'number' ? wh.dayOfWeek : parseInt(wh.dayOfWeek),
+        startTime: typeof wh.startTime === 'string' ? wh.startTime : "09:00",
+        endTime: typeof wh.endTime === 'string' ? wh.endTime : "17:00",
+        isActive: wh.isActive,
+      }));
+      setAvailability(days);
     } catch (err) {
       console.error("Failed to fetch availability:", err);
+      setAvailability(
+        daysOfWeek.map((d) => ({
+          dayOfWeek: d.value,
+          startTime: "09:00",
+          endTime: "17:00",
+          isActive: false,
+        }))
+      );
     } finally {
       setLoading(false);
     }
@@ -56,7 +76,15 @@ export default function AvailabilityPage() {
     setSuccess(false);
 
     try {
-      await api.put("/availability", { availability });
+      const payload = availability
+        .filter((a) => a.isActive)
+        .map((a) => ({
+          dayOfWeek: a.dayOfWeek,
+          startTime: a.startTime,
+          endTime: a.endTime,
+          isActive: a.isActive,
+        }));
+      await api.put("/workinghours", payload);
       setSuccess(true);
       fetchAvailability();
     } catch (err) {
@@ -66,27 +94,28 @@ export default function AvailabilityPage() {
     }
   };
 
-  const updateAvailability = (day: number, field: string, value: string) => {
-    setAvailability((prev) => {
-      const existing = prev.find((a) => a.dayOfWeek === day);
-      if (existing) {
-        return prev.map((a) =>
-          a.dayOfWeek === day ? { ...a, [field]: value } : a
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: "",
-          companyId: "",
-          dayOfWeek: day,
-          startTime: field === "startTime" ? value : "09:00",
-          endTime: field === "endTime" ? value : "17:00",
-          isActive: true,
-        },
-      ];
-    });
+  const updateAvailability = (day: number, field: string, value: string | boolean) => {
+    setAvailability((prev) =>
+      prev.map((a) =>
+        a.dayOfWeek === day
+          ? { ...a, [field]: value }
+          : a
+      )
+    );
   };
+
+  useEffect(() => {
+    if (!loading && availability.length === 0) {
+      setAvailability(
+        daysOfWeek.map((d) => ({
+          dayOfWeek: d.value,
+          startTime: "09:00",
+          endTime: "17:00",
+          isActive: false,
+        }))
+      );
+    }
+  }, [loading]);
 
   if (authLoading || loading) {
     return <div>Loading...</div>;
@@ -112,7 +141,17 @@ export default function AvailabilityPage() {
               );
               return (
                 <div key={day.value} className="flex items-center gap-4">
-                  <div className="w-28 font-medium">{day.label}</div>
+                  <div className="w-8">
+                    <input
+                      type="checkbox"
+                      checked={dayAvailability?.isActive || false}
+                      onChange={(e) =>
+                        updateAvailability(day.value, "isActive", e.target.checked)
+                      }
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <div className="w-24 font-medium">{day.label}</div>
                   <Input
                     type="time"
                     value={dayAvailability?.startTime || "09:00"}
@@ -120,6 +159,7 @@ export default function AvailabilityPage() {
                       updateAvailability(day.value, "startTime", e.target.value)
                     }
                     className="w-32"
+                    disabled={!dayAvailability?.isActive}
                   />
                   <span>to</span>
                   <Input
@@ -129,6 +169,7 @@ export default function AvailabilityPage() {
                       updateAvailability(day.value, "endTime", e.target.value)
                     }
                     className="w-32"
+                    disabled={!dayAvailability?.isActive}
                   />
                 </div>
               );

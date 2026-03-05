@@ -5,18 +5,28 @@
     "GeneralRule": {
       "Endpoint": "*",
       "Period": "1m",
-      "Limit": 100
+      "Limit": 60
     },
     "Rules": [
       {
         "Endpoint": "POST:/api/auth/login",
-        "Period": "1m",
+        "Period": "5m",
         "Limit": 5
       },
       {
         "Endpoint": "POST:/api/auth/register",
-        "Period": "1m",
+        "Period": "1h",
         "Limit": 3
+      },
+      {
+        "Endpoint": "POST:/api/reservations",
+        "Period": "1m",
+        "Limit": 10
+      },
+      {
+        "Endpoint": "*:/api/reservations",
+        "Period": "1m",
+        "Limit": 30
       }
     ]
   }

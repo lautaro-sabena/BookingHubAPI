@@ -32,6 +32,7 @@ public class ServicesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Owner")]
     public async Task<ActionResult<PagedResult<ServiceResponse>>> GetServices(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
@@ -61,7 +62,22 @@ public class ServicesController : ControllerBase
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var serviceResponses = services.Select(s => new ServiceResponse(
-            s.Id, s.Name, s.Description, s.DurationMinutes, s.Price, s.IsActive, s.CompanyId)).ToList();
+            s.Id, s.Name, s.Description, s.DurationMinutes, s.Price, s.IsActive, s.CompanyId, s.Company.Name, s.Company.Description)).ToList();
+
+        return Ok(new PagedResult<ServiceResponse>(serviceResponses, totalCount, page, pageSize, totalPages));
+    }
+
+    [HttpGet("all")]
+    public async Task<ActionResult<PagedResult<ServiceResponse>>> GetAllServices(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var services = await _serviceRepository.GetAllActiveAsync(page, pageSize);
+        var totalCount = await _serviceRepository.GetAllActiveCountAsync();
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        var serviceResponses = services.Select(s => new ServiceResponse(
+            s.Id, s.Name, s.Description, s.DurationMinutes, s.Price, s.IsActive, s.CompanyId, s.Company.Name, s.Company.Description)).ToList();
 
         return Ok(new PagedResult<ServiceResponse>(serviceResponses, totalCount, page, pageSize, totalPages));
     }
@@ -77,7 +93,7 @@ public class ServicesController : ControllerBase
             return NotFound();
         }
 
-        var service = await _serviceRepository.GetByIdAsync(id);
+        var service = await _serviceRepository.GetByIdWithCompanyAsync(id);
 
         if (service == null)
         {
@@ -93,10 +109,12 @@ public class ServicesController : ControllerBase
                 service.DurationMinutes,
                 service.Price,
                 service.IsActive,
-                service.CompanyId));
+                service.CompanyId,
+                service.Company.Name,
+                service.Company.Description));
         }
 
-        if (service.IsActive)
+        if (service.IsActive && service.Company.IsActive)
         {
             return Ok(new ServiceResponse(
                 service.Id,
@@ -105,7 +123,9 @@ public class ServicesController : ControllerBase
                 service.DurationMinutes,
                 service.Price,
                 service.IsActive,
-                service.CompanyId));
+                service.CompanyId,
+                service.Company.Name,
+                service.Company.Description));
         }
 
         return Forbid();
@@ -132,6 +152,8 @@ public class ServicesController : ControllerBase
         };
 
         var createdService = await _serviceRepository.CreateAsync(service);
+        
+        var company = await _companyRepository.GetByIdAsync(createdService.CompanyId);
 
         return CreatedAtAction(nameof(GetServices), new ServiceResponse(
             createdService.Id,
@@ -140,7 +162,9 @@ public class ServicesController : ControllerBase
             createdService.DurationMinutes,
             createdService.Price,
             createdService.IsActive,
-            createdService.CompanyId));
+            createdService.CompanyId,
+            company?.Name ?? string.Empty,
+            company?.Description));
     }
 
     [HttpPut("{id}")]
@@ -188,6 +212,8 @@ public class ServicesController : ControllerBase
 
         var updatedService = await _serviceRepository.UpdateAsync(service);
 
+        var company = await _companyRepository.GetByIdAsync(updatedService.CompanyId);
+
         return Ok(new ServiceResponse(
             updatedService.Id,
             updatedService.Name,
@@ -195,7 +221,9 @@ public class ServicesController : ControllerBase
             updatedService.DurationMinutes,
             updatedService.Price,
             updatedService.IsActive,
-            updatedService.CompanyId));
+            updatedService.CompanyId,
+            company?.Name ?? string.Empty,
+            company?.Description));
     }
 
     [HttpDelete("{id}")]

@@ -74,7 +74,7 @@ public class ReservationsController : ControllerBase
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var responses = reservations.Select(r => new ReservationResponse(
-            r.Id, r.CustomerId, r.ServiceId, r.Service.Name, r.Service.DurationMinutes,
+            r.Id, r.CustomerId, r.Customer.Email, r.ServiceId, r.Service.Name, r.Service.DurationMinutes,
             r.StartTime, r.EndTime, r.Status.ToString(), r.Notes, r.CreatedAt)).ToList();
 
         return Ok(new PagedResult<ReservationResponse>(responses, totalCount, page, pageSize, totalPages));
@@ -133,7 +133,7 @@ public class ReservationsController : ControllerBase
         await _notificationService.SendReservationCreatedAsync(createdReservation.Id, user.Email, company.Name);
 
         return CreatedAtAction(nameof(GetReservations), new ReservationResponse(
-            createdReservation.Id, createdReservation.CustomerId, createdReservation.ServiceId,
+            createdReservation.Id, createdReservation.CustomerId, user.Email, createdReservation.ServiceId,
             service.Name, service.DurationMinutes, createdReservation.StartTime, createdReservation.EndTime,
             createdReservation.Status.ToString(), createdReservation.Notes, createdReservation.CreatedAt));
     }
@@ -170,7 +170,7 @@ public class ReservationsController : ControllerBase
         }
 
         return Ok(new ReservationResponse(
-            updatedReservation.Id, updatedReservation.CustomerId, updatedReservation.ServiceId,
+            updatedReservation.Id, updatedReservation.CustomerId, customer?.Email ?? string.Empty, updatedReservation.ServiceId,
             reservation.Service.Name, reservation.Service.DurationMinutes, updatedReservation.StartTime,
             updatedReservation.EndTime, updatedReservation.Status.ToString(), updatedReservation.Notes,
             updatedReservation.CreatedAt));
@@ -218,7 +218,7 @@ public class ReservationsController : ControllerBase
         }
 
         return Ok(new ReservationResponse(
-            updatedReservation.Id, updatedReservation.CustomerId, updatedReservation.ServiceId,
+            updatedReservation.Id, updatedReservation.CustomerId, customer?.Email ?? string.Empty, updatedReservation.ServiceId,
             reservation.Service.Name, reservation.Service.DurationMinutes, updatedReservation.StartTime,
             updatedReservation.EndTime, updatedReservation.Status.ToString(), updatedReservation.Notes,
             updatedReservation.CreatedAt));

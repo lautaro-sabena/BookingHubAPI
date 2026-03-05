@@ -11,6 +11,7 @@ const ownerNavItems = [
   { href: "/dashboard/services", label: "Services", icon: Calendar },
   { href: "/dashboard/availability", label: "Availability", icon: Clock },
   { href: "/dashboard/reservations", label: "Reservations", icon: Users },
+  { href: "/owner/calendar", label: "Calendar", icon: Calendar },
 ];
 
 const customerNavItems = [
