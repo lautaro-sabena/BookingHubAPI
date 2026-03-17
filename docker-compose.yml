@@ -15,7 +15,7 @@ services:
 
   api:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     container_name: bookinghub_api
     environment:
