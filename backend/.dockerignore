@@ -1,0 +1,41 @@
+# Build outputs
+bin
+obj
+out
+
+# Test
+TestResults
+*.log
+
+# IDE
+.idea
+.vscode
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs
+README.md
+LICENSE
+*.md
+
+# Git
+.git
+.gitignore
+
+# Secrets
+*.pfx
+*.key
+*.pem
+
+# Test projects
+tests
+**/bin
+**/obj
+
+# Local development
+*.local.yaml
+*.local.json

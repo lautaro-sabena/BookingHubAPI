@@ -1,64 +1,94 @@
 # BookingHub Frontend
 
-Next.js 14 frontend for the BookingHub API.
+Interfaz de usuario para el sistema de reservas BookingHub, desarrollada con Next.js 14.
 
-## Getting Started
-
-### Prerequisites
+## Requisitos Previos
 
 - Node.js 18+
-- npm or yarn
+- npm
 
-### Installation
+## Instalación
 
 ```bash
 cd frontend
 npm install
 ```
 
-### Development
+## Desarrollo
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
-### Environment Variables
+## Variables de Entorno
 
-Create a `.env.local` file:
+Crear un archivo `.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
-### Docker
+## Docker
 
 ```bash
 docker build -t bookinghub-frontend .
 docker run -p 3000:3000 bookinghub-frontend
 ```
 
-Or use Docker Compose:
+O con Docker Compose:
 
 ```bash
 docker-compose up --build
 ```
 
-## Features
+## Características
 
-- User registration and login (Owner/Customer roles)
-- Company management for business owners
-- Service management
-- Availability configuration
-- Reservation booking system
-- Responsive design
+- **Autenticación**: Registro y login (roles Owner/Customer)
+- **Gestión de empresa**: Crear y editar perfil de empresa
+- **Gestión de servicios**: Crear, editar y eliminar servicios
+- **Disponibilidad**: Configurar horarios de atención
+- **Reservas**: Sistema de reservas con calendario
+- **Dashboard**: Vistas diferenciadas por rol
+- **Diseño responsive**: Adaptable a dispositivos móviles
 
-## Tech Stack
+## Stack Tecnológico
 
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind CSS
-- React Query
-- Zustand
-- Axios
+- **Next.js 14** - Framework (App Router)
+- **TypeScript** - Lenguaje
+- **Tailwind CSS** - Estilos
+- **React Query** - Fetching y caché de datos
+- **Zustand** - Gestión de estado global
+- **Axios** - Cliente HTTP
+- **Radix UI** - Componentes accesibles
+- **Zod** - Validación de esquemas
+- **React Hook Form** - Formularios
+
+## Scripts
+
+```bash
+npm run dev      # Desarrollo
+npm run build    # Producción
+npm run start    # Servidor de producción
+npm run lint     # Linting
+npm test         # Tests unitarios
+npm run test:coverage  # Coverage
+npm run test:ui       # UI de tests
+```
+
+## Estructura
+
+```
+frontend/
+├── src/
+│   ├── app/           # Páginas y rutas (App Router)
+│   ├── components/    # Componentes reutilizables
+│   │   └── ui/        # Componentes base (shadcn)
+│   ├── hooks/         # Custom hooks
+│   ├── lib/           # Utilidades y configuración
+│   │   └── api.ts     # Configuración de axios
+│   └── stores/        # Estado global (Zustand)
+├── public/            # Assets estáticos
+└── Dockerfile
+```
