@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: bookinghub-api
+    region: us
+    plan: free
+    rootDirectory: backend
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: Jwt__Issuer
+        value: BookingHubAPI
+      - key: Jwt__Audience
+        value: BookingHubAPI
+      - key: Cors__AllowedOrigins
+        value: https://bookinghubapi-frontend-h0ui.onrender.com
+
+  - type: web
+    name: bookinghub-frontend
+    region: us
+    plan: free
+    rootDirectory: frontend
+    dockerfilePath: render.Dockerfile
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://bookinghubapi.onrender.com
+      - key: NODE_ENV
+        value: production
