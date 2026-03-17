@@ -21,7 +21,15 @@ public class JwtService : IJwtService
 
     public JwtService(IConfiguration configuration)
     {
-        _secretKey = configuration["Jwt:SecretKey"] ?? "ThisIsASecretKeyForDevelopment12345678";
+        var secretKey = configuration["Jwt:SecretKey"] 
+            ?? throw new InvalidOperationException("JWT SecretKey no configurada. Configure la variable de entorno Jwt__SecretKey");
+        
+        if (secretKey.Length < 32)
+        {
+            throw new InvalidOperationException("JWT SecretKey debe tener al menos 32 caracteres para seguridad");
+        }
+        
+        _secretKey = secretKey;
         _issuer = configuration["Jwt:Issuer"] ?? "BookingHubAPI";
         _audience = configuration["Jwt:Audience"] ?? "BookingHubAPI";
         _expirationMinutes = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");

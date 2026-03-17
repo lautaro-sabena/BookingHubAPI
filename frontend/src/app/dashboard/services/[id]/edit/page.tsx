@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -24,18 +24,7 @@ export default function EditServicePage() {
   const [price, setPrice] = useState(0);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!authLoading && user?.role !== "Owner") {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (user?.role === "Owner" && serviceId) {
-      fetchService();
-    }
-  }, [user, authLoading, router, serviceId]);
-
-  const fetchService = async () => {
+  const fetchService = useCallback(async () => {
     try {
       const response = await api.get<Service>(`/services/${serviceId}`);
       setService(response.data);
@@ -49,7 +38,18 @@ export default function EditServicePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [serviceId]);
+
+  useEffect(() => {
+    if (!authLoading && user?.role !== "Owner") {
+      router.push("/dashboard");
+      return;
+    }
+
+    if (user?.role === "Owner" && serviceId) {
+      fetchService();
+    }
+  }, [user, authLoading, router, serviceId, fetchService]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

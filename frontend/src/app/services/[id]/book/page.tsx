@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,17 @@ export default function BookServicePage({ params }: { params: { id: string } }) 
 
   const today = new Date().toISOString().split("T")[0];
 
+  const fetchService = useCallback(async () => {
+    try {
+      const response = await api.get<Service>(`/services/${params.id}`);
+      setService(response.data);
+    } catch (err) {
+      console.error("Failed to fetch service:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
+
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
@@ -38,18 +49,7 @@ export default function BookServicePage({ params }: { params: { id: string } }) 
     }
 
     fetchService();
-  }, [user, authLoading, router, params.id]);
-
-  const fetchService = async () => {
-    try {
-      const response = await api.get<Service>(`/services/${params.id}`);
-      setService(response.data);
-    } catch (err) {
-      console.error("Failed to fetch service:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user, authLoading, router, params.id, fetchService]);
 
   const fetchAvailableSlots = async (date: Date) => {
     setSlotsLoading(true);

@@ -115,7 +115,7 @@ export default function AvailabilityPage() {
         }))
       );
     }
-  }, [loading]);
+  }, [loading, availability.length]);
 
   if (authLoading || loading) {
     return <div>Loading...</div>;

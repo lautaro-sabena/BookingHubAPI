@@ -28,4 +28,9 @@ USER appuser
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "BookingHubAPI.API.dll", "--urls", "http://0.0.0.0:8080"]
+ENV ASPNETCORE_ENVIRONMENT=Production \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    DOTNET_TC_HeapCount=4 \
+    DOTNET_GCHeapHardLimit=536870912
+
+ENTRYPOINT ["dotnet", "BookingHubAPI.API.dll", "--urls", "http://0.0.0.0:8080", "--gc-mode=server"]

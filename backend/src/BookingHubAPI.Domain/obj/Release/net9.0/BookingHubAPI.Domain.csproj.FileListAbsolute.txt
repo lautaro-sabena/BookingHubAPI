@@ -1,0 +1,12 @@
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\bin\Release\net9.0\BookingHubAPI.Domain.deps.json
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\bin\Release\net9.0\BookingHubAPI.Domain.dll
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\bin\Release\net9.0\BookingHubAPI.Domain.pdb
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.AssemblyInfoInputs.cache
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.AssemblyInfo.cs
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.csproj.CoreCompileInputs.cache
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.sourcelink.json
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.dll
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\refint\BookingHubAPI.Domain.dll
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\BookingHubAPI.Domain.pdb
+C:\Users\lauta\BookingHubAPI\backend\src\BookingHubAPI.Domain\obj\Release\net9.0\ref\BookingHubAPI.Domain.dll

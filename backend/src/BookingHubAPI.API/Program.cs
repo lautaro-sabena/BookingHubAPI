@@ -97,29 +97,14 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHsts();
-}
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
-    db.Database.EnsureCreated();
-}
-
-if (!app.Environment.IsDevelopment())
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
-        db.Database.Migrate();
-    }
-}
-
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
 app.UseRouting();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseIpRateLimiting();
 
