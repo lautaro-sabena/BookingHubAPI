@@ -4,6 +4,7 @@ using BookingHubAPI.Infrastructure.Auth;
 using BookingHubAPI.Infrastructure.Services;
 using BookingHubAPI.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -25,8 +26,8 @@ builder.Services.AddEndpointsApiExplorer();
 var connectionString = builder.Configuration["ConnectionStrings:DefaultConnection"] 
     ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection no configurado");
 builder.Services.AddDbContext<BookingDbContext>(options =>
-    options.UseSqlServer(connectionString, sqlOptions => 
-        sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorNumbersToAdd: null)));
+    options.UseNpgsql(connectionString, npgsqlOptions => 
+        npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: new List<string>())));
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
