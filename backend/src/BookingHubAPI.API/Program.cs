@@ -20,13 +20,6 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
 var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
 
-Console.WriteLine($"[CORS DEBUG] Cors:AllowedOrigins = '{builder.Configuration["Cors:AllowedOrigins"]}'");
-Console.WriteLine($"[CORS DEBUG] allowedOrigins count = {allowedOrigins.Length}");
-foreach (var origin in allowedOrigins)
-{
-    Console.WriteLine($"[CORS DEBUG] Origin: {origin}");
-}
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -112,10 +105,7 @@ app.UseCors(corsPolicyName);
 
 app.UseRouting();
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// HTTPS redirection is handled by Render's proxy
 
 app.UseIpRateLimiting();
 
