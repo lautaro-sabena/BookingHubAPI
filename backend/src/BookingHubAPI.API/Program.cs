@@ -13,6 +13,8 @@ using FluentValidation.AspNetCore;
 using AutoMapper;
 using AspNetCoreRateLimit;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
