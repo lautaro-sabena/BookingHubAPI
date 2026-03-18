@@ -20,6 +20,13 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
 var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
 
+Console.WriteLine($"[CORS DEBUG] Cors:AllowedOrigins = '{builder.Configuration["Cors:AllowedOrigins"]}'");
+Console.WriteLine($"[CORS DEBUG] allowedOrigins count = {allowedOrigins.Length}");
+foreach (var origin in allowedOrigins)
+{
+    Console.WriteLine($"[CORS DEBUG] Origin: {origin}");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -77,16 +84,17 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(corsPolicyName, policy =>
     {
+        policy.SetIsOriginAllowedToAllowWildcardSubdomains();
         if (allowedOrigins.Length > 0)
         {
             policy.WithOrigins(allowedOrigins)
                   .AllowAnyHeader()
-                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                  .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
                   .AllowCredentials();
         }
         else
         {
-            policy.SetIsOriginAllowed(_ => false)
+            policy.SetIsOriginAllowed(_ => true)
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         }
