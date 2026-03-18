@@ -18,7 +18,6 @@ var builder = WebApplication.CreateBuilder(args);
 var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
-var allowedOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -72,25 +71,13 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-var corsPolicyName = "AllowedOrigins";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(corsPolicyName, policy =>
+    options.AddDefaultPolicy(policy =>
     {
-        policy.SetIsOriginAllowedToAllowWildcardSubdomains();
-        if (allowedOrigins.Length > 0)
-        {
-            policy.WithOrigins(allowedOrigins)
-                  .AllowAnyHeader()
-                  .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-                  .AllowCredentials();
-        }
-        else
-        {
-            policy.SetIsOriginAllowed(_ => true)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        }
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -101,7 +88,7 @@ var app = builder.Build();
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
-app.UseCors(corsPolicyName);
+app.UseCors();
 
 app.UseRouting();
 
