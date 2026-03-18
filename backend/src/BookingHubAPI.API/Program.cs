@@ -81,7 +81,7 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins(allowedOrigins)
                   .AllowAnyHeader()
-                  .AllowAnyMethod()
+                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                   .AllowCredentials();
         }
         else
@@ -100,6 +100,8 @@ var app = builder.Build();
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
+app.UseCors(corsPolicyName);
+
 app.UseRouting();
 
 if (!app.Environment.IsDevelopment())
@@ -111,8 +113,6 @@ app.UseIpRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.UseCors(corsPolicyName);
 
 app.MapControllers();
 
