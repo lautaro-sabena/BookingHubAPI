@@ -77,7 +77,22 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        
+        if (origins == null || origins.Length == 0)
+        {
+            var singleOrigin = builder.Configuration["Cors:AllowedOrigins"];
+            if (!string.IsNullOrEmpty(singleOrigin))
+            {
+                origins = new[] { singleOrigin };
+            }
+            else
+            {
+                origins = Array.Empty<string>();
+            }
+        }
+
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
