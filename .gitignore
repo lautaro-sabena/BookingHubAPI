@@ -21,10 +21,15 @@ frontend/coverage/
 frontend/.vercel
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
+
+# Docker
+docker-compose.yml
+
+# IDE
+.vscode/
 
 # Misc
 .DS_Store
