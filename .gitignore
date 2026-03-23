@@ -31,6 +31,9 @@ docker-compose.yml
 # IDE
 .vscode/
 
+# Openspec (documentación interna)
+openspec/
+
 # Misc
 .DS_Store
 *.pem
