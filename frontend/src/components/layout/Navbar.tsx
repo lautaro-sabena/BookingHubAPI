@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
+import { Sun, Moon } from "lucide-react";
 
 export function Navbar() {
   const { user, logout, isAuthenticated } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav className="border-b bg-background">
@@ -35,6 +38,19 @@ export function Navbar() {
               </Link>
             </>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="ml-2"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            )}
+          </Button>
         </div>
       </div>
     </nav>
