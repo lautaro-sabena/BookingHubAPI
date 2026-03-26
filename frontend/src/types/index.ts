@@ -90,3 +90,14 @@ export interface AvailableSlot {
   endTime: string;
   isAvailable: boolean;
 }
+
+export interface Favorite {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  serviceDescription?: string;
+  durationMinutes: number;
+  price: number;
+  companyId: string;
+  companyName: string;
+}

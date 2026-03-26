@@ -12,6 +12,7 @@ public class BookingDbContext : DbContext
     public DbSet<Domain.Entities.Service> Services => Set<Domain.Entities.Service>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<WorkingHours> WorkingHours => Set<WorkingHours>();
+    public DbSet<Favorite> Favorites => Set<Favorite>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +73,20 @@ public class BookingDbContext : DbContext
                 .WithMany(c => c.WorkingHours)
                 .HasForeignKey(e => e.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Favorite>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Customer)
+                .WithMany()
+                .HasForeignKey(e => e.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Service)
+                .WithMany()
+                .HasForeignKey(e => e.ServiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.CustomerId, e.ServiceId }).IsUnique();
         });
     }
 }
