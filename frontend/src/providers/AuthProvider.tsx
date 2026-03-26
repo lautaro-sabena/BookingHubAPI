@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
 
-    router.push(role === "Owner" ? "/dashboard" : "/services");
+    router.push(role === "Owner" ? "/dashboard" : "/dashboard");
   };
 
   const register = async (email: string, password: string, role: string) => {
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
 
-    router.push(userData.role === "Owner" ? "/dashboard" : "/services");
+    router.push(userData.role === "Owner" ? "/dashboard" : "/dashboard");
   };
 
   const logout = () => {
