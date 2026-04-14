@@ -61,7 +61,7 @@ export default function CustomerDashboardPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">My Reservations</h1>
         <Link href="/services">
-          <Button className="bg-black text-white hover:bg-gray-800">
+          <Button>
             Book a Service
           </Button>
         </Link>
