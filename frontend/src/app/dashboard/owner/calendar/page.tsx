@@ -151,8 +151,8 @@ export default function OwnerCalendarPage() {
                 <div
                   key={index}
                   className={`min-h-[80px] border p-1 ${
-                    day.isCurrentMonth ? "bg-white" : "bg-gray-50"
-                  } ${day.isToday ? "border-blue-500 border-2" : ""}`}
+                    day.isCurrentMonth ? "bg-card text-foreground" : "bg-muted text-muted-foreground"
+                  } ${day.isToday ? "border-primary border-2" : ""}`}
                 >
                   <div className="text-sm font-medium">{day.date.getDate()}</div>
                   <div className="space-y-1">
@@ -162,12 +162,12 @@ export default function OwnerCalendarPage() {
                         onClick={() => setSelectedReservation(res)}
                         className={`text-xs p-1 rounded cursor-pointer truncate ${
                           res.status === "Pending"
-                            ? "bg-yellow-100 text-yellow-800"
+                            ? "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300"
                             : res.status === "Confirmed"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-green-500/20 text-green-700 dark:text-green-300"
                             : res.status === "Cancelled"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-gray-100 text-gray-800"
+                            ? "bg-red-500/20 text-red-700 dark:text-red-300"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {formatTime(res.startTime)} - {res.serviceName}
