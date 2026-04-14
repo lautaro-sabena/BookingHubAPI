@@ -25,11 +25,13 @@ const customerNavItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   
-  const isOwner = pathname.startsWith("/dashboard/owner") || 
-    (pathname === "/dashboard" && user?.role === "Owner");
+  if (isLoading) {
+    return null;
+  }
   
+  const isOwner = user?.role === "Owner";
   const isCustomer = user?.role === "Customer";
   
   // Show customer nav for customer, owner nav for owner
