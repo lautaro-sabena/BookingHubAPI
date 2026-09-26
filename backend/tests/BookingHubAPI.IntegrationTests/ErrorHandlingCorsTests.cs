@@ -45,9 +45,9 @@ public class ErrorHandlingCorsTests : IClassFixture<ErrorHandlingCorsTests.Throw
     {
         var configuration = _factory.Services.GetRequiredService<IConfiguration>();
         var configuredOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-        var allowedOrigin = configuredOrigins?.FirstOrDefault(o => !string.IsNullOrWhiteSpace(o))
-            ?? configuration["Cors:AllowedOrigins"];
-        allowedOrigin.Should().NotBeNullOrEmpty("the test host must have a configured CORS origin to exercise");
+        var allowedOrigin = configuredOrigins?.FirstOrDefault(o => !string.IsNullOrWhiteSpace(o));
+        allowedOrigin.Should().NotBeNullOrEmpty(
+            "the test host must have a configured CORS origin array to exercise, e.g. Cors:AllowedOrigins in appsettings.json");
 
         var client = _factory.CreateClient();
         var request = new HttpRequestMessage(HttpMethod.Get, ThrowingPath);
