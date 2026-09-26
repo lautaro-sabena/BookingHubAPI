@@ -39,16 +39,20 @@ Plataforma de reservas de servicios entre empresas y clientes.
 
 ## Configuración
 
-1. Copiar `.env.example` a `.env` y configurar las variables:
+1. Copiar `.env.example` a `.env` y configurar las variables (docker-compose las lee de este archivo):
 
 ```bash
 # Backend
-JWT_SECRET_KEY=TuClaveSeguraMinimo32Caracteres
-CORS_ALLOWED_ORIGINS=https://tudominio.com
+JWT_SECRET_KEY=YourSecureKeyMin32Characters
+DB_PASSWORD=YourSecurePassword
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
 
 # Frontend
-NEXT_PUBLIC_API_URL=https://api.tudominio.com
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 ```
+
+Para desarrollo local sin Docker (`dotnet run`), ver la sección de user-secrets en
+`backend/README.md` en su lugar - `.env`/`.env.example` solo aplican al flujo de docker-compose.
 
 ## Ejecución con Docker
 
@@ -66,7 +70,7 @@ docker-compose down
 **Puertos:**
 - Frontend: http://localhost:3000
 - API: http://localhost:5000
-- SQL Server: localhost:1433
+- PostgreSQL: localhost:5432
 
 ## Ejecución Local
 
@@ -92,7 +96,7 @@ npm run dev
 ### Backend
 - .NET 9
 - Entity Framework Core
-- SQL Server
+- PostgreSQL (Npgsql)
 - JWT Authentication
 - FluentValidation
 - AspNetCoreRateLimit

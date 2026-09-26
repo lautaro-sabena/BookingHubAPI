@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bookinghub_postgres
+    environment:
+      - POSTGRES_DB=bookinghubdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD:?Set DB_PASSWORD in a .env file next to this compose file - see .env.example}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bookinghub_api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=bookinghubdb;Username=postgres;Password=${DB_PASSWORD:?Set DB_PASSWORD in a .env file next to this compose file - see .env.example}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY (32+ chars) in a .env file next to this compose file - see .env.example}
+      - Jwt__Issuer=BookingHubAPI
+      - Jwt__Audience=BookingHubAPI
+      - Cors__AllowedOrigins=http://localhost:3000
+    ports:
+      - "5000:8080"
+    depends_on:
+      - postgres
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bookinghub_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: on-failure
+
+volumes:
+  postgres_data:

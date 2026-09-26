@@ -21,7 +21,7 @@ backend/
 
 - **.NET 9** - Framework
 - **Entity Framework Core 9** - ORM
-- **SQL Server** - Base de datos
+- **PostgreSQL** (Npgsql) - Base de datos
 - **JWT** - Autenticación
 - **FluentValidation** - Validación
 - **AspNetCoreRateLimit** - Rate limiting
@@ -31,30 +31,57 @@ backend/
 
 ### Variables de Entorno
 
-| Variable | Descripción | Ejemplo |
+| Variable | Description | Example |
 |----------|-------------|---------|
-| `ConnectionStrings__DefaultConnection` | Connection string SQL Server | `Server=localhost;Database=BookingHubDB;User Id=sa;Password=...` |
-| `Jwt__SecretKey` | Clave JWT (mín. 32 caracteres) | `TuClaveSegura12345678901234567890` |
-| `Jwt__Issuer` | Emisor del token | `BookingHubAPI` |
-| `Jwt__Audience` | Audiencia del token | `BookingHubAPI` |
-| `Jwt__ExpirationMinutes` | Expiración del token (default: 60) | `60` |
-| `Cors__AllowedOrigins` | Origins permitidos (separados por coma) | `http://localhost:3000,https://tudominio.com` |
+| `ConnectionStrings__DefaultConnection` | Npgsql (PostgreSQL) connection string | `Host=localhost;Port=5432;Database=bookinghubdb;Username=postgres;Password=...` |
+| `Jwt__SecretKey` | JWT signing key (min. 32 characters) - required, no default | `YourSecureKey1234567890123456789012` |
+| `Jwt__Issuer` | Token issuer (default: `BookingHubAPI`) | `BookingHubAPI` |
+| `Jwt__Audience` | Token audience (default: `BookingHubAPI`) | `BookingHubAPI` |
+| `Jwt__ExpirationMinutes` | Token expiration in minutes (default: 60) | `60` |
+| `Cors__AllowedOrigins` | Allowed origin (one per variable; see note below) | `https://yourdomain.com` |
+
+CORS also accepts a comma-separated list in a single variable
+(`Cors__AllowedOrigins=https://a.com,https://b.com`), or an indexed array
+(`Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ...) - see `Program.cs`
+(`CorsOriginsResolver`).
+
+### Development secrets (user-secrets)
+
+`appsettings.Development.json` no longer contains `Jwt:SecretKey` or a database password -
+both are required, and the app fails fast at startup with an explicit message naming the
+missing key if either is absent. Configure them locally with
+[.NET user-secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets)
+(loaded automatically when `ASPNETCORE_ENVIRONMENT=Development`), run from
+`backend/src/BookingHubAPI.API`:
+
+```bash
+dotnet user-secrets set "Jwt:SecretKey" "<a random value of at least 32 characters>"
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=bookinghubdb;Username=postgres;Password=<your-local-postgres-password>"
+```
+
+If you run the backend through `docker-compose` (from the repo root) instead of `dotnet run`,
+this step isn't needed: compose reads `JWT_SECRET_KEY` and `DB_PASSWORD` from a `.env` file
+(see the root `.env.example`) and injects them as container environment variables.
+
+**Secrets previously committed in this file (`Password123!`,
+`DevSecretKey1234567890123456789012`) must be treated as compromised** and must not be
+reused in any real environment.
 
 ### appsettings.json
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "${DB_CONNECTION_STRING}"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=bookinghubdb;Username=postgres;Password=..."
   },
   "Jwt": {
-    "SecretKey": "${JWT_SECRET_KEY}",
+    "SecretKey": "...",
     "Issuer": "BookingHubAPI",
     "Audience": "BookingHubAPI",
     "ExpirationMinutes": 60
   },
   "Cors": {
-    "AllowedOrigins": "${CORS_ALLOWED_ORIGINS}"
+    "AllowedOrigins": ["https://tudominio.com"]
   }
 }
 ```
