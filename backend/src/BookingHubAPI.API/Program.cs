@@ -43,6 +43,10 @@ builder.Services.AddAutoMapper(typeof(Program));
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+// rate-limit.json is not loaded by the host by default (only appsettings*.json are);
+// without this, IpRateLimiting binds to an empty section and every rule is silently ignored.
+builder.Configuration.AddJsonFile("rate-limit.json", optional: false, reloadOnChange: true);
+
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
 builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();

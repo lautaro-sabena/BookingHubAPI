@@ -34,13 +34,13 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 
 ## Tasks
 - [x] T1 — Untrack `bin/`/`obj/` (git rm --cached), verify `.gitignore`. Route: inline (mechanical). Evidence: 1110 files untracked; tracked bin/obj count = 0; `dotnet build` 0 errors; build no longer dirties status.
-- [x] T1b — Fix integration test harness: test factory registers EF InMemory alongside Npgsql (6/7 integration tests fail on base: "Only a single database provider"). Route: inline (3 small test files). Root cause: EF Core 9 keeps provider config in `IDbContextOptionsConfiguration<T>`; also `Guid.NewGuid()` inside the options lambda gave every DbContext its own DB. Fix: reusable `BookingApiFactory`; removed placeholder `UnitTest1.cs`. Evidence: `dotnet test backend/BookingHubAPI.sln` → UnitTests 31/31, IntegrationTests 6/6.
-- [ ] T2 — Security bug fixes: JWT `companyId` claim (JwtService), load rate-limit rules into configuration, CORS in ErrorHandlingMiddleware uses configured whitelist, stop leaking raw exception messages. Tests for each. Route: delegated writer (3+ non-trivial files).
-- [ ] T3 — Secrets & config: remove hardcoded secrets from `appsettings.Development.json`/compose, use user-secrets/env vars, fix SQL Server vs Postgres connection-string mismatch, update `.env.example`/README. Route: delegated writer.
+- [x] T1b — Fix integration test harness: test factory registers EF InMemory alongside Npgsql (6/7 integration tests fail on base: "Only a single database provider"). Route: inline (3 small test files). Commit 64751e6; review assess: medium, 80 lines, under_budget (pending in slice). Root cause: EF Core 9 keeps provider config in `IDbContextOptionsConfiguration<T>`; also `Guid.NewGuid()` inside the options lambda gave every DbContext its own DB. Fix: reusable `BookingApiFactory`; removed placeholder `UnitTest1.cs`. Evidence: `dotnet test backend/BookingHubAPI.sln` → UnitTests 31/31, IntegrationTests 6/6.
+- [x] T2 — Security bug fixes: JWT `companyId` claim (JwtService), load rate-limit rules into configuration, CORS in ErrorHandlingMiddleware uses configured whitelist. Tests for each. (Exception-message exposure moved to T7: controllers likely rely on user-facing messages.) Route: delegated writer (3+ non-trivial files). Evidence: build 0 errors; UnitTests 33/33, IntegrationTests 10/10. Extra finding: rate-limit.json used `GeneralRule`/`Rules` keys that AspNetCoreRateLimit never binds (fixed to `GeneralRules`). Test factory relaxes limits by default (`RelaxRateLimiting`).
+- [ ] T3 — Secrets & config: remove hardcoded secrets from `appsettings.Development.json`/compose, use user-secrets/env vars, fix SQL Server vs Postgres connection-string mismatch, update `.env.example`/README. Also: `appsettings.Development.json` `Cors:AllowedOrigins` is a comma string vs array in appsettings.json, so only localhost:3000 binds. Route: delegated writer.
 - [ ] T4 — Auth plumbing reuse: `ClaimsPrincipal` extensions (`GetUserId`, `GetCompanyId`), role constants instead of magic strings, remove 5x duplicated `GetUserId()`. Route: delegated writer.
 - [ ] T5 — Application layer: use-case services for Reservations (conflict detection, status transitions, ownership), FluentValidation validators, Result pattern; thin controller. Tests for conflict + IDOR paths. Route: delegated writer.
 - [ ] T6 — Application layer: same for Services, Companies, WorkingHours, Favorites, Auth. Route: delegated writer (may split).
-- [ ] T7 — Consistent error handling: ProblemDetails, Result→HTTP mapping, domain exceptions. Route: delegated writer.
+- [ ] T7 — Consistent error handling: ProblemDetails, Result→HTTP mapping, domain exceptions; stop exposing raw ArgumentException/InvalidOperationException messages. Route: delegated writer.
 - [ ] T8 — Domain enrichment: invariants/behavior on entities (Reservation status transitions, etc.). Route: delegated writer.
 - [ ] T9 — Database: replace `EnsureCreated()` with migrations, reconcile migration with model. Route: delegated writer.
 - [ ] T10 — Remove dead scaffolding (empty folders, `UnitTest1.cs`), README cleanup (openspec refs), move Postman collection to `docs/`. Route: inline.
@@ -61,4 +61,4 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 - Review boundary advanced to 9af03f0 by user decision (T1 not natively reviewable: budget exceeded).
 
 ## Next step
-T2 (security bug fixes).
+T3 (secrets & config).
