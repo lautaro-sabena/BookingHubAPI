@@ -29,7 +29,11 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 
 ## Delivery
 - Strategy: `ask-on-risk` (default). Forecast exceeds ~400 lines → chain strategy: `stacked-to-main` (user choice, 2026-09-26).
-- Slices: PR1 = T1 + T1b + T2 + T2b + T2c (hygiene, test harness, security fixes) — commits 9af03f0..HEAD at T2c.
+- Slices (stacked to main; PR1 over budget so split in 3):
+  - #1 `refactor/hardening-01-hygiene` (base main): 9af03f0, 64751e6 — T1, T1b. 135 authored lines + generated deletions.
+  - #2 `refactor/hardening-02-security-fixes` (base #1): 0770bf6, 3e97637 — T2. 311 lines.
+  - #3 `refactor/hardening-03-proxy-client-ip` (base #2): 7b1f644, 536af0b, 310d43a — T2b, T2c. 314 lines.
+  - Next slices continue from `refactor/project-hardening` on top of #3; retarget each PR to main after its parent merges.
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks
@@ -66,4 +70,4 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 - T2 commit 0770bf6. Slice 9af03f0..0770bf6 (T1b+T2, 381 lines) assessed high (auth hot path); user granted; 4-lens review approved, acknowledged (authority burned). Review boundary → 0770bf6. 8 advisory findings → T2b.
 
 ## Next step
-PR1 ready (T1–T2c, all reviewed or user-waived); awaiting user decision to push/open PR. Then T3 (secrets & config), T3b (vulnerable deps).
+PRs #1–#3 open (user merges). Next: T3 (secrets & config), T3b (vulnerable deps).
