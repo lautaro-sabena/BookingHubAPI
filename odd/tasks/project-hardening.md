@@ -34,7 +34,7 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 
 ## Tasks
 - [x] T1 — Untrack `bin/`/`obj/` (git rm --cached), verify `.gitignore`. Route: inline (mechanical). Evidence: 1110 files untracked; tracked bin/obj count = 0; `dotnet build` 0 errors; build no longer dirties status.
-- [ ] T1b — Fix integration test harness: test factory registers EF InMemory alongside Npgsql (6/7 integration tests fail on base: "Only a single database provider"). Route: inline.
+- [x] T1b — Fix integration test harness: test factory registers EF InMemory alongside Npgsql (6/7 integration tests fail on base: "Only a single database provider"). Route: inline (3 small test files). Root cause: EF Core 9 keeps provider config in `IDbContextOptionsConfiguration<T>`; also `Guid.NewGuid()` inside the options lambda gave every DbContext its own DB. Fix: reusable `BookingApiFactory`; removed placeholder `UnitTest1.cs`. Evidence: `dotnet test backend/BookingHubAPI.sln` → UnitTests 31/31, IntegrationTests 6/6.
 - [ ] T2 — Security bug fixes: JWT `companyId` claim (JwtService), load rate-limit rules into configuration, CORS in ErrorHandlingMiddleware uses configured whitelist, stop leaking raw exception messages. Tests for each. Route: delegated writer (3+ non-trivial files).
 - [ ] T3 — Secrets & config: remove hardcoded secrets from `appsettings.Development.json`/compose, use user-secrets/env vars, fix SQL Server vs Postgres connection-string mismatch, update `.env.example`/README. Route: delegated writer.
 - [ ] T4 — Auth plumbing reuse: `ClaimsPrincipal` extensions (`GetUserId`, `GetCompanyId`), role constants instead of magic strings, remove 5x duplicated `GetUserId()`. Route: delegated writer.
@@ -55,7 +55,10 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 ## Progress
 - Branch `refactor/project-hardening` created from `main` (8960e9f).
 - Baseline: UnitTests 31/31 pass; IntegrationTests 1/7 pass (6 fail: dual EF provider in test factory).
-- T1 commit: see `git log` "chore: stop tracking build artifacts in git".
+- T1 commit: 9af03f0 "chore: stop tracking build artifacts in git". Review: assessed high (heuristic on a deleted .dll name); user granted; START refused `lens_context_budget_exceeded` (36812 generated lines; cannot be split meaningfully). Structural readback only: diff is 1110 bin/obj deletions + this doc.
+- Local: `.atl/` and `entrevista-repaso.md` added to `.git/info/exclude` (local-only, not committed).
+
+- Review boundary advanced to 9af03f0 by user decision (T1 not natively reviewable: budget exceeded).
 
 ## Next step
-T1b (test harness), then T2.
+T2 (security bug fixes).

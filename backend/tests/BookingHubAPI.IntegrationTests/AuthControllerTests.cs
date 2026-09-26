@@ -1,39 +1,18 @@
-using BookingHubAPI.API;
 using BookingHubAPI.Application.DTOs;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using BookingHubAPI.Infrastructure.Data;
 using System.Net;
 using System.Net.Http.Json;
 using Xunit;
 
 namespace BookingHubAPI.IntegrationTests;
 
-public class AuthControllerTests : IClassFixture<WebApplicationFactory<Program>>
+public class AuthControllerTests : IClassFixture<BookingApiFactory>
 {
-    private readonly WebApplicationFactory<Program> _factory;
     private readonly HttpClient _client;
 
-    public AuthControllerTests(WebApplicationFactory<Program> factory)
+    public AuthControllerTests(BookingApiFactory factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<BookingDbContext>));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-
-                services.AddDbContext<BookingDbContext>(options =>
-                    options.UseInMemoryDatabase("TestDb_" + Guid.NewGuid()));
-            });
-        });
-
-        _client = _factory.CreateClient();
+        _client = factory.CreateClient();
     }
 
     [Fact]
