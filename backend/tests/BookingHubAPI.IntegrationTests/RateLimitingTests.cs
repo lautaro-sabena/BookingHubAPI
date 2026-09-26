@@ -1,6 +1,7 @@
 using System.Net;
 using AspNetCoreRateLimit;
 using FluentAssertions;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -64,7 +65,7 @@ public class RateLimitingTests
         for (var i = 0; i < TinyLimit + 5; i++)
         {
             var response = await client.GetAsync("/health");
-            response.StatusCode.Should().NotBe((HttpStatusCode)429,
+            response.StatusCode.Should().Be(HttpStatusCode.OK,
                 "/health is on IpRateLimiting.EndpointWhitelist and must never be throttled");
         }
     }
@@ -78,7 +79,7 @@ public class RateLimitingTests
     [Fact]
     public async Task DifferentForwardedForValues_ShouldGetIndependentRateLimitCounters()
     {
-        using var factory = new TrustedProxyTinyRateLimitApiFactory();
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true);
         var client = factory.CreateClient();
 
         var requestFromFirstIp = new HttpRequestMessage(HttpMethod.Get, UnmappedProbePath);
@@ -98,6 +99,26 @@ public class RateLimitingTests
         var secondIpResponse = await client.SendAsync(requestFromSecondIp);
         secondIpResponse.StatusCode.Should().NotBe((HttpStatusCode)429,
             "a different forwarded IP must have its own counter, unaffected by the first IP's");
+    }
+
+    /// <summary>
+    /// With ForwardedHeaders:TrustAllProxies off (the default), a client-supplied
+    /// X-Forwarded-For must be ignored; otherwise clients could rotate the header to evade limits.
+    /// </summary>
+    [Fact]
+    public async Task ForwardedFor_ShouldBeIgnored_WhenProxiesAreNotTrusted()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: false);
+        var client = factory.CreateClient();
+
+        var firstRequest = new HttpRequestMessage(HttpMethod.Get, UnmappedProbePath);
+        firstRequest.Headers.Add("X-Forwarded-For", "203.0.113.10");
+        (await client.SendAsync(firstRequest)).StatusCode.Should().NotBe((HttpStatusCode)429);
+
+        var spoofedRequest = new HttpRequestMessage(HttpMethod.Get, UnmappedProbePath);
+        spoofedRequest.Headers.Add("X-Forwarded-For", "198.51.100.20");
+        (await client.SendAsync(spoofedRequest)).StatusCode.Should().Be((HttpStatusCode)429,
+            "an untrusted X-Forwarded-For must not give the client a fresh counter");
     }
 
     /// <summary>Does not relax rate limiting, so IpRateLimitOptions reflects appsettings.json as-is.</summary>
@@ -134,11 +155,10 @@ public class RateLimitingTests
     }
 
     /// <summary>
-    /// Same tiny-limit setup as <see cref="TinyRateLimitApiFactory"/>, plus
-    /// ForwardedHeaders:TrustAllProxies so the limiter keys on X-Forwarded-For instead of the
-    /// shared TestServer connection IP (mirrors the Render deployment's configuration).
+    /// Allows one request per client IP and sets ForwardedHeaders:TrustAllProxies explicitly,
+    /// so tests can compare the trusted (Render) and untrusted (default) proxy configurations.
     /// </summary>
-    private class TrustedProxyTinyRateLimitApiFactory : BookingApiFactory
+    private class SingleRequestLimitApiFactory(bool trustAllProxies) : BookingApiFactory
     {
         protected override bool RelaxRateLimiting => false;
 
@@ -148,9 +168,15 @@ public class RateLimitingTests
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ForwardedHeaders:TrustAllProxies"] = "true"
+                    ["ForwardedHeaders:TrustAllProxies"] = trustAllProxies.ToString()
                 });
             });
+
+            // TestServer leaves RemoteIpAddress null, and ForwardedHeadersMiddleware skips its
+            // known-proxy check for a null peer. Simulate a real (non-loopback) proxy peer so
+            // the trust setting is what decides whether X-Forwarded-For is honored.
+            builder.ConfigureServices(services =>
+                services.AddTransient<IStartupFilter, SimulatedProxyPeerStartupFilter>());
 
             base.ConfigureWebHost(builder);
 
@@ -165,5 +191,20 @@ public class RateLimitingTests
                 });
             });
         }
+    }
+
+    private sealed class SimulatedProxyPeerStartupFilter : IStartupFilter
+    {
+        private static readonly System.Net.IPAddress ProxyAddress = System.Net.IPAddress.Parse("10.0.0.1");
+
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, nextMiddleware) =>
+            {
+                context.Connection.RemoteIpAddress = ProxyAddress;
+                return nextMiddleware(context);
+            });
+            next(app);
+        };
     }
 }

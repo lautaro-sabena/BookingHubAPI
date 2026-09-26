@@ -49,12 +49,11 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 // X-Forwarded-For for every consumer. Render publishes no fixed proxy range, so
 // ForwardedHeaders:TrustAllProxies (set in render.yaml) trusts the single immediate hop.
 // Only enable it where the proxy is the sole ingress; otherwise clients can spoof the header.
-var trustAllProxies = builder.Configuration.GetValue<bool>("ForwardedHeaders:TrustAllProxies");
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
+builder.Services.AddOptions<ForwardedHeadersOptions>().Configure<IConfiguration>((options, configuration) =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     options.ForwardLimit = 1;
-    if (trustAllProxies)
+    if (configuration.GetValue<bool>("ForwardedHeaders:TrustAllProxies"))
     {
         options.KnownNetworks.Clear();
         options.KnownProxies.Clear();
