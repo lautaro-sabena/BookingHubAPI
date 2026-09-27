@@ -96,9 +96,6 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        // Supports both an indexed array (appsettings.json, or Cors__AllowedOrigins__0/__1/...
-        // env vars) and a single flat scalar value carrying a comma-separated list (e.g. one
-        // Cors__AllowedOrigins env var, as used by Render and docker-compose).
         policy.WithOrigins(CorsOriginsResolver.Resolve(builder.Configuration))
               .AllowAnyHeader()
               .AllowAnyMethod();

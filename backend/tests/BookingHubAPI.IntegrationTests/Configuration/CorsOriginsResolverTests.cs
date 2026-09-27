@@ -5,6 +5,9 @@ using Xunit;
 
 namespace BookingHubAPI.IntegrationTests.Configuration;
 
+// Lives in IntegrationTests, not UnitTests, because CorsOriginsResolver is in the API project
+// and BookingHubAPI.UnitTests only references Domain/Application/Infrastructure - referencing
+// API from UnitTests would pull in ASP.NET Core hosting and break that layering boundary.
 public class CorsOriginsResolverTests
 {
     [Fact]
@@ -56,5 +59,29 @@ public class CorsOriginsResolverTests
         var configuration = new ConfigurationBuilder().Build();
 
         CorsOriginsResolver.Resolve(configuration).Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Resolve_WhenEnvScalarOverridesJsonArray_ShouldPreferTheScalar()
+    {
+        // Mimics appsettings.Development.json's indexed array being layered under an
+        // environment-variable-style flat "Cors:AllowedOrigins" override, exactly as
+        // docker-compose and Render set Cors__AllowedOrigins alongside
+        // ASPNETCORE_ENVIRONMENT=Development: the flat env value must win even though the
+        // JSON provider's indexed children are still present in the composite configuration.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins:0"] = "http://localhost:3000",
+                ["Cors:AllowedOrigins:1"] = "http://localhost:5173"
+            })
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cors:AllowedOrigins"] = "https://bookinghubapi-frontend-h0ui.onrender.com"
+            })
+            .Build();
+
+        CorsOriginsResolver.Resolve(configuration).Should().BeEquivalentTo(
+            new[] { "https://bookinghubapi-frontend-h0ui.onrender.com" });
     }
 }
