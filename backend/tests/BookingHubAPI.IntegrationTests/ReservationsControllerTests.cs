@@ -1,0 +1,569 @@
+using System.Net;
+using System.Net.Http.Json;
+using BookingHubAPI.Application.DTOs;
+using BookingHubAPI.IntegrationTests.Support;
+using FluentAssertions;
+using Xunit;
+
+namespace BookingHubAPI.IntegrationTests;
+
+/// <summary>
+/// Characterization tests for /api/reservations. They pin the observable HTTP behavior
+/// (status codes and body shapes) so the controller can be refactored without changing it.
+/// Each test registers its own users/services, so tests never interfere with each other.
+/// </summary>
+public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
+{
+    private readonly BookingApiFactory _factory;
+
+    public ReservationsControllerTests(BookingApiFactory factory)
+    {
+        _factory = factory;
+    }
+
+    // ---------- helpers ----------
+
+    private static Task<HttpResponseMessage> BookAsync(
+        TestUser customer, ServiceResponse service, DateTime start, string? notes = null) =>
+        customer.Client.PostAsJsonAsync("/api/reservations", new ReservationRequest(service.Id, start, notes));
+
+    private static async Task<ReservationResponse> BookOkAsync(
+        TestUser customer, ServiceResponse service, DateTime start, string? notes = null)
+    {
+        var response = await BookAsync(customer, service, start, notes);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        return (await response.Content.ReadFromJsonAsync<ReservationResponse>())!;
+    }
+
+    private static async Task AssertErrorAsync(HttpResponseMessage response, HttpStatusCode status, string message)
+    {
+        response.StatusCode.Should().Be(status);
+        var body = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        body.Should().ContainKey("error").WhoseValue.Should().Be(message);
+    }
+
+    private static async Task<PagedResult<ReservationResponse>> ListAsync(TestUser user, string query = "")
+    {
+        var response = await user.Client.GetAsync("/api/reservations" + query);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        return (await response.Content.ReadFromJsonAsync<PagedResult<ReservationResponse>>())!;
+    }
+
+    // ---------- authentication ----------
+
+    [Theory]
+    [InlineData("GET", "/api/reservations")]
+    [InlineData("POST", "/api/reservations")]
+    [InlineData("PUT", "/api/reservations/00000000-0000-0000-0000-000000000001/confirm")]
+    [InlineData("PUT", "/api/reservations/00000000-0000-0000-0000-000000000001/cancel")]
+    public async Task AnyEndpoint_WithoutToken_ShouldReturnUnauthorized(string method, string url)
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), url));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    // ---------- GET /api/reservations ----------
+
+    [Fact]
+    public async Task List_ForCustomerWithoutReservations_ShouldReturnEmptyPage()
+    {
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var page = await ListAsync(customer);
+
+        page.Items.Should().BeEmpty();
+        page.TotalCount.Should().Be(0);
+        page.Page.Should().Be(1);
+        page.PageSize.Should().Be(10);
+        page.TotalPages.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task List_ForCustomer_ShouldReturnOnlyOwnReservations()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var aliceReservation = await BookOkAsync(alice, service, TestApi.FutureSlot(hour: 9));
+        await BookOkAsync(bob, service, TestApi.FutureSlot(hour: 12));
+
+        var page = await ListAsync(alice);
+
+        page.TotalCount.Should().Be(1);
+        var item = page.Items.Should().ContainSingle().Subject;
+        item.Id.Should().Be(aliceReservation.Id);
+        item.CustomerId.Should().Be(alice.UserId);
+        item.CustomerEmail.Should().Be(alice.Email);
+        item.ServiceId.Should().Be(service.Id);
+        item.ServiceName.Should().Be(service.Name);
+        item.ServiceDuration.Should().Be(60);
+        item.Status.Should().Be("Pending");
+    }
+
+    [Fact]
+    public async Task List_ForOwner_ShouldReturnAllReservationsOfOwnCompanyOnly()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var otherOwner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var otherService = await TestApi.CreateServiceAsync(otherOwner);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        await BookOkAsync(alice, service, TestApi.FutureSlot(hour: 9));
+        await BookOkAsync(bob, service, TestApi.FutureSlot(hour: 12));
+        await BookOkAsync(bob, otherService, TestApi.FutureSlot(hour: 9));
+
+        var page = await ListAsync(owner);
+
+        page.TotalCount.Should().Be(2);
+        page.Items.Select(r => r.CustomerEmail).Should().BeEquivalentTo(new[] { alice.Email, bob.Email });
+        page.Items.Should().OnlyContain(r => r.ServiceId == service.Id);
+    }
+
+    [Fact]
+    public async Task List_ShouldPaginateNewestFirstAndFilterByStatusCaseInsensitively()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var first = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 8));
+        var second = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 10));
+        var third = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 12));
+        (await customer.Client.PutAsync($"/api/reservations/{second.Id}/cancel", null))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var firstPage = await ListAsync(customer, "?page=1&pageSize=2");
+        var secondPage = await ListAsync(customer, "?page=2&pageSize=2");
+        var cancelled = await ListAsync(customer, "?status=cancelled");
+        var unknownStatus = await ListAsync(customer, "?status=Nonsense");
+
+        firstPage.Items.Select(r => r.Id).Should().Equal(third.Id, second.Id);
+        firstPage.TotalCount.Should().Be(3);
+        firstPage.TotalPages.Should().Be(2);
+        firstPage.Page.Should().Be(1);
+        firstPage.PageSize.Should().Be(2);
+        secondPage.Items.Select(r => r.Id).Should().Equal(first.Id);
+        cancelled.Items.Select(r => r.Id).Should().Equal(second.Id);
+        cancelled.TotalCount.Should().Be(1);
+        // An unparseable status is silently ignored instead of rejected.
+        unknownStatus.TotalCount.Should().Be(3);
+    }
+
+    // ---------- POST /api/reservations ----------
+
+    [Fact]
+    public async Task Create_WithValidRequest_ShouldReturnCreatedPendingReservation()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 45);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+
+        var response = await BookAsync(customer, service, start, "Window seat");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.ToString().Should().EndWith("/api/Reservations");
+        var body = (await response.Content.ReadFromJsonAsync<ReservationResponse>())!;
+        body.Id.Should().NotBeEmpty();
+        body.CustomerId.Should().Be(customer.UserId);
+        body.CustomerEmail.Should().Be(customer.Email);
+        body.ServiceId.Should().Be(service.Id);
+        body.ServiceName.Should().Be(service.Name);
+        body.ServiceDuration.Should().Be(45);
+        body.StartTime.Should().Be(start);
+        body.EndTime.Should().Be(start.AddMinutes(45));
+        body.Status.Should().Be("Pending");
+        body.Notes.Should().Be("Window seat");
+        body.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+    }
+
+    [Fact]
+    public async Task Create_ForUnknownService_ShouldReturnBadRequest()
+    {
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await customer.Client.PostAsJsonAsync(
+            "/api/reservations", new ReservationRequest(Guid.NewGuid(), TestApi.FutureSlot(), null));
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Service not found or inactive");
+    }
+
+    [Fact]
+    public async Task Create_WithEmptyServiceId_ShouldReturnBadRequestServiceNotFound()
+    {
+        // [Required] does not reject Guid.Empty (a value type), so it reaches the lookup.
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await customer.Client.PostAsJsonAsync(
+            "/api/reservations", new ReservationRequest(Guid.Empty, TestApi.FutureSlot(), null));
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Service not found or inactive");
+    }
+
+    [Fact]
+    public async Task Create_ForInactiveService_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        (await owner.Client.DeleteAsync($"/api/services/{service.Id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, TestApi.FutureSlot());
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Service not found or inactive");
+    }
+
+    [Fact]
+    public async Task Create_ForInactiveCompany_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        await TestApi.DeactivateCompanyAsync(_factory, service.CompanyId);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, TestApi.FutureSlot());
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Company not found or inactive");
+    }
+
+    [Fact]
+    public async Task Create_InThePast_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, DateTime.UtcNow.AddDays(-1));
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Cannot book in the past");
+    }
+
+    [Fact]
+    public async Task Create_WithNotesOverLimit_ShouldReturnValidationProblem()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, TestApi.FutureSlot(), new string('x', 501));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("Notes");
+    }
+
+    [Fact]
+    public async Task Create_WithMalformedBody_ShouldReturnBadRequest()
+    {
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await customer.Client.PostAsync(
+            "/api/reservations", new StringContent("{ not json", System.Text.Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Create_WithExactlyOverlappingSlot_ShouldReturnConflict()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        await BookOkAsync(alice, service, start);
+
+        var response = await BookAsync(bob, service, start);
+
+        await AssertErrorAsync(response, HttpStatusCode.Conflict, "Time slot is not available");
+    }
+
+    [Theory]
+    [InlineData(30)]   // starts inside the existing 60 minute booking
+    [InlineData(-30)]  // ends inside the existing booking
+    [InlineData(15)]   // fully contained (starts 15 minutes in, ends 75 minutes in: partial at the tail)
+    public async Task Create_WithPartiallyOverlappingSlot_ShouldReturnConflict(int offsetMinutes)
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 60);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        await BookOkAsync(alice, service, start);
+
+        var response = await BookAsync(bob, service, start.AddMinutes(offsetMinutes));
+
+        await AssertErrorAsync(response, HttpStatusCode.Conflict, "Time slot is not available");
+    }
+
+    [Fact]
+    public async Task Create_WithAdjacentSlots_ShouldSucceedOnBothSides()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 60);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var carol = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        await BookOkAsync(alice, service, start);
+
+        var after = await BookAsync(bob, service, start.AddMinutes(60));
+        var before = await BookAsync(carol, service, start.AddMinutes(-60));
+
+        after.StatusCode.Should().Be(HttpStatusCode.Created);
+        before.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Create_ForSlotHeldByCancelledReservation_ShouldSucceed()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        var reservation = await BookOkAsync(alice, service, start);
+        (await alice.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var response = await BookAsync(bob, service, start);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Create_ForSameSlotOnDifferentService_ShouldSucceed()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var otherService = await TestApi.CreateServiceAsync(owner);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        await BookOkAsync(alice, service, start);
+
+        var response = await BookAsync(bob, otherService, start);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Create_AsOwner_ShouldSucceedEvenOnOwnService()
+    {
+        // CURRENT BEHAVIOR (bug): there is no role restriction on booking, so an owner can
+        // reserve a slot on their own company's service like any customer.
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+
+        var response = await BookAsync(owner, service, TestApi.FutureSlot());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    // ---------- PUT /api/reservations/{id}/confirm ----------
+
+    [Fact]
+    public async Task Confirm_ByOwnerOfCompany_ShouldReturnConfirmedReservation()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await owner.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = (await response.Content.ReadFromJsonAsync<ReservationResponse>())!;
+        body.Id.Should().Be(reservation.Id);
+        body.Status.Should().Be("Confirmed");
+        body.CustomerId.Should().Be(customer.UserId);
+        body.CustomerEmail.Should().Be(customer.Email);
+        body.ServiceName.Should().Be(service.Name);
+        body.ServiceDuration.Should().Be(service.DurationMinutes);
+        body.StartTime.Should().Be(reservation.StartTime);
+        body.EndTime.Should().Be(reservation.EndTime);
+    }
+
+    [Fact]
+    public async Task Confirm_AsCustomer_ShouldReturnForbidden()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await customer.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Confirm_ByOwnerOfAnotherCompany_ShouldReturnNotFoundAndLeaveReservationPending()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var otherOwner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await otherOwner.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await ListAsync(customer)).Items.Single().Status.Should().Be("Pending");
+    }
+
+    [Fact]
+    public async Task Confirm_UnknownReservation_ShouldReturnNotFound()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+
+        var response = await owner.Client.PutAsync($"/api/reservations/{Guid.NewGuid()}/confirm", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Confirm_WithMalformedId_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+
+        var response = await owner.Client.PutAsync("/api/reservations/not-a-guid/confirm", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Confirm_AlreadyConfirmedReservation_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+        await owner.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        var response = await owner.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Only pending reservations can be confirmed");
+    }
+
+    [Fact]
+    public async Task Confirm_CancelledReservation_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+        await customer.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        var response = await owner.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Only pending reservations can be confirmed");
+    }
+
+    // ---------- PUT /api/reservations/{id}/cancel ----------
+
+    [Fact]
+    public async Task Cancel_ByOwningCustomer_ShouldReturnCancelledReservation()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await customer.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = (await response.Content.ReadFromJsonAsync<ReservationResponse>())!;
+        body.Id.Should().Be(reservation.Id);
+        body.Status.Should().Be("Cancelled");
+        body.CustomerEmail.Should().Be(customer.Email);
+        body.ServiceName.Should().Be(service.Name);
+    }
+
+    [Fact]
+    public async Task Cancel_ByOwnerOfCompany_ShouldReturnCancelledReservation()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await owner.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<ReservationResponse>())!.Status.Should().Be("Cancelled");
+    }
+
+    [Fact]
+    public async Task Cancel_ConfirmedReservation_ShouldSucceed()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+        await owner.Client.PutAsync($"/api/reservations/{reservation.Id}/confirm", null);
+
+        var response = await customer.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Cancel_ByAnotherCustomer_ShouldReturnForbiddenAndLeaveReservationPending()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var stranger = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await stranger.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ListAsync(customer)).Items.Single().Status.Should().Be("Pending");
+    }
+
+    [Fact]
+    public async Task Cancel_ByOwnerOfAnotherCompany_ShouldReturnForbiddenAndLeaveReservationPending()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var otherOwner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+
+        var response = await otherOwner.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ListAsync(customer)).Items.Single().Status.Should().Be("Pending");
+    }
+
+    [Fact]
+    public async Task Cancel_UnknownReservation_ShouldReturnNotFound()
+    {
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await customer.Client.PutAsync($"/api/reservations/{Guid.NewGuid()}/cancel", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Cancel_AlreadyCancelledReservation_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var reservation = await BookOkAsync(customer, service, TestApi.FutureSlot());
+        await customer.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        var response = await customer.Client.PutAsync($"/api/reservations/{reservation.Id}/cancel", null);
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Reservation cannot be cancelled");
+    }
+}
