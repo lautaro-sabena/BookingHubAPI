@@ -174,7 +174,8 @@ public class ReservationService : IReservationService
             return Error.Forbidden("Reservation belongs to another customer");
         }
 
-        if (user.Role == UserRole.Owner && user.CompanyId.HasValue && reservation.CompanyId != user.CompanyId.Value)
+        // Fail closed: an owner without a company must not be able to cancel any reservation.
+        if (user.Role == UserRole.Owner && (!user.CompanyId.HasValue || reservation.CompanyId != user.CompanyId.Value))
         {
             return Error.Forbidden("Reservation belongs to another company");
         }

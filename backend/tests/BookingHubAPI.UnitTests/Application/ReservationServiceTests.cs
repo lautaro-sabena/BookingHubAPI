@@ -322,6 +322,19 @@ public class ReservationServiceTests
     }
 
     [Fact]
+    public async Task Cancel_ByOwnerWithoutCompany_ReturnsForbiddenAndDoesNotUpdate()
+    {
+        var reservation = GivenReservation(ReservationStatus.Pending);
+        _owner.CompanyId = null;
+
+        var result = await _sut.CancelReservationAsync(_owner.Id, reservation.Id);
+
+        AssertFailure(result, ErrorKind.Forbidden);
+        _reservations.Verify(r => r.UpdateAsync(It.IsAny<Reservation>()), Times.Never);
+        reservation.Status.Should().Be(ReservationStatus.Pending);
+    }
+
+    [Fact]
     public async Task Cancel_ByOtherCustomer_ReturnsForbiddenAndDoesNotUpdate()
     {
         var reservation = GivenReservation(ReservationStatus.Pending);
