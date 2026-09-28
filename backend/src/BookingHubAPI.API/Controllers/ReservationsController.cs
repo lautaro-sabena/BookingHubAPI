@@ -4,7 +4,7 @@ using BookingHubAPI.Domain.Interfaces;
 using BookingHubAPI.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using BookingHubAPI.API.Extensions;
 
 namespace BookingHubAPI.API.Controllers;
 
@@ -39,7 +39,7 @@ public class ReservationsController : ControllerBase
         [FromQuery] int pageSize = 10,
         [FromQuery] string? status = null)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -79,7 +79,7 @@ public class ReservationsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ReservationResponse>> CreateReservation([FromBody] ReservationRequest request)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -137,7 +137,7 @@ public class ReservationsController : ControllerBase
     [HttpPut("{id}/confirm")]
     public async Task<ActionResult<ReservationResponse>> ConfirmReservation(Guid id)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
@@ -175,7 +175,7 @@ public class ReservationsController : ControllerBase
     [HttpPut("{id}/cancel")]
     public async Task<ActionResult<ReservationResponse>> CancelReservation(Guid id)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -218,11 +218,5 @@ public class ReservationsController : ControllerBase
             reservation.Service.Name, reservation.Service.DurationMinutes, updatedReservation.StartTime,
             updatedReservation.EndTime, updatedReservation.Status.ToString(), updatedReservation.Notes,
             updatedReservation.CreatedAt));
-    }
-
-    private Guid GetUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim!);
     }
 }

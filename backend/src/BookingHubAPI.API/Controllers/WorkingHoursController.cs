@@ -3,7 +3,7 @@ using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using BookingHubAPI.API.Extensions;
 
 namespace BookingHubAPI.API.Controllers;
 
@@ -29,7 +29,7 @@ public class WorkingHoursController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<WorkingHoursResponse>>> GetWorkingHours()
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
@@ -53,7 +53,7 @@ public class WorkingHoursController : ControllerBase
     [HttpPut]
     public async Task<ActionResult<IEnumerable<WorkingHoursResponse>>> UpdateWorkingHours([FromBody] List<WorkingHoursRequest> requests)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
@@ -82,11 +82,5 @@ public class WorkingHoursController : ControllerBase
         }
 
         return Ok(await GetWorkingHours());
-    }
-
-    private Guid GetUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim!);
     }
 }

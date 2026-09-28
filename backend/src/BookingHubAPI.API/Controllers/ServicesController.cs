@@ -4,7 +4,7 @@ using BookingHubAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+using BookingHubAPI.API.Extensions;
 
 namespace BookingHubAPI.API.Controllers;
 
@@ -28,13 +28,13 @@ public class ServicesController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Owner")]
+    [Authorize(Roles = RoleNames.Owner)]
     public async Task<ActionResult<PagedResult<ServiceResponse>>> GetServices(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string? search = null)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -81,7 +81,7 @@ public class ServicesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse>> GetService(Guid id)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -130,7 +130,7 @@ public class ServicesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ServiceResponse>> CreateService([FromBody] ServiceRequest request)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
@@ -166,7 +166,7 @@ public class ServicesController : ControllerBase
     [HttpPut("{id}")]
     public async Task<ActionResult<ServiceResponse>> UpdateService(Guid id, [FromBody] ServiceUpdateRequest request)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
@@ -225,7 +225,7 @@ public class ServicesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteService(Guid id)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
@@ -244,11 +244,5 @@ public class ServicesController : ControllerBase
         await _serviceRepository.UpdateAsync(service);
 
         return NoContent();
-    }
-
-    private Guid GetUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim!);
     }
 }
