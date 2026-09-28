@@ -1,4 +1,3 @@
-using AutoMapper;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;
@@ -15,16 +14,13 @@ public class FavoritesController : ControllerBase
 {
     private readonly IFavoriteRepository _favoriteRepository;
     private readonly IServiceRepository _serviceRepository;
-    private readonly IMapper _mapper;
 
     public FavoritesController(
         IFavoriteRepository favoriteRepository,
-        IServiceRepository serviceRepository,
-        IMapper mapper)
+        IServiceRepository serviceRepository)
     {
         _favoriteRepository = favoriteRepository;
         _serviceRepository = serviceRepository;
-        _mapper = mapper;
     }
 
     [HttpGet]
@@ -32,7 +28,7 @@ public class FavoritesController : ControllerBase
     {
         var userId = GetUserId();
         var favorites = await _favoriteRepository.GetByCustomerIdAsync(userId);
-        var favoriteDtos = _mapper.Map<IEnumerable<FavoriteDto>>(favorites);
+        var favoriteDtos = favorites.Select(f => f.ToDto());
         return Ok(favoriteDtos);
     }
 

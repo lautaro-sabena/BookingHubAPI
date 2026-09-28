@@ -25,7 +25,6 @@ backend/
 - **JWT** - Autenticación
 - **FluentValidation** - Validación
 - **AspNetCoreRateLimit** - Rate limiting
-- **AutoMapper** - Mapeo de objetos
 
 ## Configuración
 
