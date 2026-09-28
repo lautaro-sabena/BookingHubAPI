@@ -1,6 +1,5 @@
 using BookingHubAPI.Application.DTOs;
-using BookingHubAPI.Domain.Entities;
-using BookingHubAPI.Domain.Interfaces;
+using BookingHubAPI.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BookingHubAPI.API.Extensions;
@@ -12,75 +11,31 @@ namespace BookingHubAPI.API.Controllers;
 [Authorize]
 public class WorkingHoursController : ControllerBase
 {
-    private readonly IWorkingHoursRepository _workingHoursRepository;
-    private readonly ICompanyRepository _companyRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IWorkingHoursService _workingHoursService;
 
-    public WorkingHoursController(
-        IWorkingHoursRepository workingHoursRepository,
-        ICompanyRepository companyRepository,
-        IUserRepository userRepository)
+    public WorkingHoursController(IWorkingHoursService workingHoursService)
     {
-        _workingHoursRepository = workingHoursRepository;
-        _companyRepository = companyRepository;
-        _userRepository = userRepository;
+        _workingHoursService = workingHoursService;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<WorkingHoursResponse>>> GetWorkingHours()
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
-        {
-            return Forbid();
-        }
-
-        var workingHours = await _workingHoursRepository.GetByCompanyIdAsync(user.CompanyId.Value);
-
-        var allDays = Enum.GetValues<DayOfWeek>()
-            .Select(day => new WorkingHoursResponse(
-                day,
-                workingHours.FirstOrDefault(wh => wh.DayOfWeek == day)?.StartTime ?? new TimeSpan(9, 0, 0),
-                workingHours.FirstOrDefault(wh => wh.DayOfWeek == day)?.EndTime ?? new TimeSpan(17, 0, 0),
-                workingHours.Any(wh => wh.DayOfWeek == day && wh.IsActive)
-            ));
-
-        return Ok(allDays);
+        var result = await _workingHoursService.GetWorkingHoursAsync(User.GetUserId());
+        return this.ToActionResult(result, Ok);
     }
 
     [HttpPut]
     public async Task<ActionResult<IEnumerable<WorkingHoursResponse>>> UpdateWorkingHours([FromBody] List<WorkingHoursRequest> requests)
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
+        var result = await _workingHoursService.ReplaceWorkingHoursAsync(User.GetUserId(), requests);
+        if (result.IsFailure)
         {
-            return Forbid();
+            return this.ToFailureResult(result.Error!);
         }
 
-        var companyId = user.CompanyId.Value;
-
-        await _workingHoursRepository.DeleteByCompanyIdAsync(companyId);
-
-        foreach (var request in requests)
-        {
-            if (request.IsActive)
-            {
-                var workingHours = new WorkingHours
-                {
-                    CompanyId = companyId,
-                    DayOfWeek = request.DayOfWeek,
-                    StartTime = request.StartTime,
-                    EndTime = request.EndTime,
-                    IsActive = request.IsActive
-                };
-                await _workingHoursRepository.CreateAsync(workingHours);
-            }
-        }
-
+        // CURRENT BEHAVIOR (bug): nests the GET action result instead of its value. Kept as-is so the
+        // response body does not change (pinned by WorkingHoursControllerTests).
         return Ok(await GetWorkingHours());
     }
 }
