@@ -64,6 +64,19 @@ public static class TestApi
         await db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Leaves an owner without a company; no endpoint produces this state, but a failed
+    /// half-way owner registration can (user and company are written separately).
+    /// </summary>
+    public static async Task DetachFromCompanyAsync(BookingApiFactory factory, Guid userId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+        var user = await db.Users.FindAsync(userId);
+        user!.CompanyId = null;
+        await db.SaveChangesAsync();
+    }
+
     /// <summary>A start time comfortably in the future, on a whole hour, offset by whole days.</summary>
     public static DateTime FutureSlot(int daysAhead = 30, int hour = 10) =>
         DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(daysAhead).AddHours(hour), DateTimeKind.Utc);

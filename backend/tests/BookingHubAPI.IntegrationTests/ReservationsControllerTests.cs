@@ -35,6 +35,13 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
         return (await response.Content.ReadFromJsonAsync<ReservationResponse>())!;
     }
 
+    private static async Task SetDurationAsync(TestUser owner, ServiceResponse service, int durationMinutes)
+    {
+        var response = await owner.Client.PutAsJsonAsync(
+            $"/api/services/{service.Id}", new ServiceUpdateRequest(null, null, durationMinutes, null, null));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     private static async Task AssertErrorAsync(HttpResponseMessage response, HttpStatusCode status, string message)
     {
         response.StatusCode.Should().Be(status);
@@ -286,7 +293,7 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
     [Theory]
     [InlineData(30)]   // starts inside the existing 60 minute booking
     [InlineData(-30)]  // ends inside the existing booking
-    [InlineData(15)]   // fully contained (starts 15 minutes in, ends 75 minutes in: partial at the tail)
+    [InlineData(15)]   // starts 15 minutes in and ends 75 minutes in: overlaps the existing booking at its tail
     public async Task Create_WithPartiallyOverlappingSlot_ShouldReturnConflict(int offsetMinutes)
     {
         var owner = await TestApi.RegisterOwnerAsync(_factory);
@@ -297,6 +304,41 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
         await BookOkAsync(alice, service, start);
 
         var response = await BookAsync(bob, service, start.AddMinutes(offsetMinutes));
+
+        await AssertErrorAsync(response, HttpStatusCode.Conflict, "Time slot is not available");
+    }
+
+    [Fact]
+    public async Task Create_StrictlyInsideExistingBooking_ShouldReturnConflict()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 60);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        await BookOkAsync(alice, service, start);
+        // The stored booking keeps its own end time; shrinking the service makes the next booking shorter.
+        await SetDurationAsync(owner, service, 15);
+
+        // [start+15, start+30] lies strictly inside the existing [start, start+60].
+        var response = await BookAsync(bob, service, start.AddMinutes(15));
+
+        await AssertErrorAsync(response, HttpStatusCode.Conflict, "Time slot is not available");
+    }
+
+    [Fact]
+    public async Task Create_FullyEnclosingExistingBooking_ShouldReturnConflict()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 15);
+        var alice = await TestApi.RegisterCustomerAsync(_factory);
+        var bob = await TestApi.RegisterCustomerAsync(_factory);
+        var start = TestApi.FutureSlot();
+        await BookOkAsync(alice, service, start.AddMinutes(15));
+        await SetDurationAsync(owner, service, 60);
+
+        // [start, start+60] fully encloses the existing [start+15, start+30].
+        var response = await BookAsync(bob, service, start);
 
         await AssertErrorAsync(response, HttpStatusCode.Conflict, "Time slot is not available");
     }
