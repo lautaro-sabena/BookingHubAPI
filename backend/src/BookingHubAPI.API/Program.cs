@@ -1,4 +1,6 @@
 using BookingHubAPI.API.Configuration;
+using BookingHubAPI.Application;
+using BookingHubAPI.Application.Abstractions;
 using BookingHubAPI.Infrastructure.Configuration;
 using BookingHubAPI.Infrastructure.Data;
 using BookingHubAPI.Infrastructure.Repositories;
@@ -40,7 +42,7 @@ builder.Services.AddScoped<IFavoriteRepository, FavoriteRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+builder.Services.AddApplication();
 
 // Behind Render's proxy every request arrives from the proxy IP, so the rate limiter would
 // share one counter across all clients. ForwardedHeaders restores the client IP from
