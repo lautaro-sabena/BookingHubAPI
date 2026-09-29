@@ -48,7 +48,13 @@ controllers, an empty Application layer, and thin tests around the risky paths.
   - #16 `refactor/hardening-16-auth-fixes` (base #15): a4d97bc..2fa421f — T6c auth + favorites tests. ~285.
   - #17 `refactor/hardening-17-problem-details` (base #16): 972adb7 — T7 problem details. ~400.
   - #18 `refactor/hardening-18-paging-frontend-errors` (base #17): bfec282..46b634d — T7 paging, frontend helper, review follow-ups. ~225.
-  - Next slices continue from `refactor/project-hardening` on top of #18; retarget each PR to main after its parent merges.
+  - #19 `refactor/hardening-19-availability-tests` (base #18): 0c94c78..521e22c — T8 tests. ~317.
+  - #20 `refactor/hardening-20-availability-service` (base #19): c70329a — T8 AvailabilityService. ~380.
+  - #21 `refactor/hardening-21-opening-hours` (base #20): 6f80605 — T8 opening hours + transitions. ~512 (cohesive).
+  - #22 `refactor/hardening-22-paging-order` (base #21): ed07a0d..62f60e8 — T8 ordering. ~97.
+  - #23 `refactor/hardening-23-company-time-zones` (base #22): 1291683 — T8b backend. ~947 (size:exception; DEPLOY BLOCKER data conversion).
+  - #24 `refactor/hardening-24-frontend-time-zones` (base #23): 0970cd5..6ec7731 — T8b frontend + follow-ups. ~140.
+  - Next slices continue from `refactor/project-hardening` on top of #24; retarget each PR to main after its parent merges.
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks
