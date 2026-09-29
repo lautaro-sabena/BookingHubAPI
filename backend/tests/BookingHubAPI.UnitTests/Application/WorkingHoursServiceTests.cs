@@ -119,7 +119,7 @@ public class WorkingHoursServiceTests
     // ---------- ReplaceWorkingHoursAsync ----------
 
     [Fact]
-    public async Task ReplaceWorkingHours_ShouldDeleteThePreviousScheduleAndStoreOnlyActiveEntries()
+    public async Task ReplaceWorkingHours_ShouldDeleteThePreviousScheduleAndStoreEveryEntryIncludingInactiveOnes()
     {
         var created = new List<WorkingHours>();
         _hours.Setup(h => h.CreateAsync(It.IsAny<WorkingHours>()))
@@ -135,10 +135,80 @@ public class WorkingHoursServiceTests
 
         result.IsSuccess.Should().BeTrue();
         _hours.Verify(h => h.DeleteByCompanyIdAsync(_companyId), Times.Once);
-        created.Select(w => w.DayOfWeek).Should().Equal(DayOfWeek.Monday, DayOfWeek.Friday);
-        created.Should().OnlyContain(w => w.CompanyId == _companyId && w.IsActive);
-        created[1].StartTime.Should().Be(new TimeSpan(10, 0, 0));
-        created[1].EndTime.Should().Be(new TimeSpan(20, 0, 0));
+        created.Select(w => w.DayOfWeek).Should().Equal(DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Friday);
+        created.Should().OnlyContain(w => w.CompanyId == _companyId);
+        created.Select(w => w.IsActive).Should().Equal(true, false, true);
+        created[1].StartTime.Should().Be(new TimeSpan(6, 0, 0));
+        created[1].EndTime.Should().Be(new TimeSpan(7, 0, 0));
+        created[2].StartTime.Should().Be(new TimeSpan(10, 0, 0));
+        created[2].EndTime.Should().Be(new TimeSpan(20, 0, 0));
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_ShouldReturnTheSavedSevenDaySchedule()
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[]
+        {
+            Request(DayOfWeek.Monday, 8, 12),
+            Request(DayOfWeek.Tuesday, 6, 7, isActive: false)
+        });
+
+        result.Value.Should().HaveCount(7);
+        result.Value.Select(d => d.DayOfWeek).Should().Equal(Enum.GetValues<DayOfWeek>());
+        result.Value.Single(d => d.DayOfWeek == DayOfWeek.Monday).Should().Be(
+            new WorkingHoursResponse(DayOfWeek.Monday, new TimeSpan(8, 0, 0), new TimeSpan(12, 0, 0), true));
+        result.Value.Single(d => d.DayOfWeek == DayOfWeek.Tuesday).Should().Be(
+            new WorkingHoursResponse(DayOfWeek.Tuesday, new TimeSpan(6, 0, 0), new TimeSpan(7, 0, 0), false));
+        result.Value.Single(d => d.DayOfWeek == DayOfWeek.Sunday).Should().Be(
+            new WorkingHoursResponse(DayOfWeek.Sunday, new TimeSpan(9, 0, 0), new TimeSpan(17, 0, 0), false));
+        _hours.Verify(h => h.GetByCompanyIdAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(12, 8)]
+    [InlineData(8, 8)]
+    public async Task ReplaceWorkingHours_WithActiveDayStartingNotBeforeItsEnd_ShouldReturnValidationAndTouchNothing(
+        int start, int end)
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request(DayOfWeek.Thursday, start, end) });
+
+        result.Error!.Kind.Should().Be(ErrorKind.Validation);
+        result.Error.Message.Should().Contain("Thursday");
+        _hours.Verify(h => h.DeleteByCompanyIdAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_WithInactiveDayStartingAfterItsEnd_ShouldStillStoreIt()
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request(DayOfWeek.Thursday, 18, 8, isActive: false) });
+
+        result.IsSuccess.Should().BeTrue();
+        _hours.Verify(h => h.CreateAsync(It.IsAny<WorkingHours>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_WithDuplicateDay_ShouldReturnValidationAndTouchNothing()
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[]
+        {
+            Request(DayOfWeek.Monday, 8, 12),
+            Request(DayOfWeek.Monday, 14, 18, isActive: false)
+        });
+
+        result.Error!.Kind.Should().Be(ErrorKind.Validation);
+        result.Error.Message.Should().Contain("Monday");
+        _hours.Verify(h => h.DeleteByCompanyIdAsync(It.IsAny<Guid>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(-1)]
+    public async Task ReplaceWorkingHours_WithOutOfRangeDay_ShouldReturnValidationAndTouchNothing(int day)
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request((DayOfWeek)day, 8, 12) });
+
+        result.Error!.Kind.Should().Be(ErrorKind.Validation);
+        _hours.Verify(h => h.DeleteByCompanyIdAsync(It.IsAny<Guid>()), Times.Never);
     }
 
     [Fact]
@@ -147,6 +217,7 @@ public class WorkingHoursServiceTests
         var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, Array.Empty<WorkingHoursRequest>());
 
         result.IsSuccess.Should().BeTrue();
+        result.Value.Should().OnlyContain(d => !d.IsActive);
         _hours.Verify(h => h.DeleteByCompanyIdAsync(_companyId), Times.Once);
         _hours.Verify(h => h.CreateAsync(It.IsAny<WorkingHours>()), Times.Never);
     }
