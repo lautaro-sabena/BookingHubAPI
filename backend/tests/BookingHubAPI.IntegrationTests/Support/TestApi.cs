@@ -77,6 +77,20 @@ public static class TestApi
         await db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Deletes an owner's company and clears the link, leaving an owner who has never created one;
+    /// no endpoint produces this state (registration always creates the company).
+    /// </summary>
+    public static async Task RemoveCompanyAsync(BookingApiFactory factory, Guid ownerId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+        var user = await db.Users.FindAsync(ownerId);
+        user!.CompanyId = null;
+        db.Companies.RemoveRange(db.Companies.Where(c => c.OwnerId == ownerId));
+        await db.SaveChangesAsync();
+    }
+
     /// <summary>A start time comfortably in the future, on a whole hour, offset by whole days.</summary>
     public static DateTime FutureSlot(int daysAhead = 30, int hour = 10) =>
         DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(daysAhead).AddHours(hour), DateTimeKind.Utc);
