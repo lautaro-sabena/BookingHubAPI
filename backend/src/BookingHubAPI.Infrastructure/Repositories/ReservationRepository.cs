@@ -27,6 +27,7 @@ public class ReservationRepository : IReservationRepository
     {
         var query = _context.Reservations
             .Include(r => r.Service)
+            .Include(r => r.Company)
             .Where(r => r.CustomerId == customerId);
 
         if (status.HasValue)
@@ -46,6 +47,7 @@ public class ReservationRepository : IReservationRepository
     {
         var query = _context.Reservations
             .Include(r => r.Service)
+            .Include(r => r.Company)
             .Include(r => r.Customer)
             .Where(r => r.CompanyId == companyId);
 

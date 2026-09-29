@@ -37,6 +37,8 @@ public class AvailabilityControllerTests : IClassFixture<BookingApiFactory>
     private static IEnumerable<TimeSpan> StartHours(IEnumerable<AvailableSlotResponse> slots) =>
         slots.Select(s => s.StartTime.TimeOfDay);
 
+    private static DateTimeOffset Utc(DateTime wallClock) => new(DateTime.SpecifyKind(wallClock, DateTimeKind.Utc));
+
     private static TimeSpan H(double hours) => TimeSpan.FromHours(hours);
 
     private static Task<HttpResponseMessage> BookAsync(TestUser customer, ServiceResponse service, DateTime start) =>
@@ -95,9 +97,9 @@ public class AvailabilityControllerTests : IClassFixture<BookingApiFactory>
         var slots = await SlotsAsync(customer, service, Monday);
 
         slots.Select(s => (s.StartTime, s.EndTime, s.IsAvailable)).Should().Equal(
-            (Monday.AddHours(9), Monday.AddHours(10), true),
-            (Monday.AddHours(10), Monday.AddHours(11), true),
-            (Monday.AddHours(11), Monday.AddHours(12), true));
+            (Utc(Monday.AddHours(9)), Utc(Monday.AddHours(10)), true),
+            (Utc(Monday.AddHours(10)), Utc(Monday.AddHours(11)), true),
+            (Utc(Monday.AddHours(11)), Utc(Monday.AddHours(12)), true));
     }
 
     [Fact]
@@ -171,7 +173,7 @@ public class AvailabilityControllerTests : IClassFixture<BookingApiFactory>
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var slots = (await response.Content.ReadFromJsonAsync<List<AvailableSlotResponse>>())!;
-        slots.Select(s => s.StartTime).Should().Equal(Monday.AddHours(9), Monday.AddHours(10));
+        slots.Select(s => s.StartTime).Should().Equal(Utc(Monday.AddHours(9)), Utc(Monday.AddHours(10)));
     }
 
     // ---------- reservations ----------
@@ -231,43 +233,5 @@ public class AvailabilityControllerTests : IClassFixture<BookingApiFactory>
         (await BookAsync(customer, service, Monday.AddHours(9.5))).StatusCode.Should().Be(HttpStatusCode.Created);
 
         StartHours(await SlotsAsync(customer, service, Monday)).Should().Equal(H(11));
-    }
-
-    // ---------- time zones ----------
-
-    [Fact]
-    public async Task Availability_ShouldReturnWallClockSlotsRegardlessOfTheCompanyTimeZone()
-    {
-        // CURRENT BEHAVIOR (bug): the company time zone is never consulted. Working hours are read as a
-        // floating wall clock and slots are emitted without an offset (Kind Unspecified), so a company in
-        // New York and one in UTC with the same schedule get identical slots, and the booking rule treats a
-        // UTC-stamped start time the same way. Fixing this needs a time zone design (T9+), not a quick patch.
-        var owner = await TestApi.RegisterOwnerAsync(_factory);
-        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 60);
-        await TestApi.SetWorkingHoursAsync(owner, TestApi.Hours(DayOfWeek.Monday, 9, 11));
-        var update = await owner.Client.PutAsJsonAsync(
-            "/api/companies/me", new CompanyUpdateRequest(null, null, "America/New_York"));
-        update.StatusCode.Should().Be(HttpStatusCode.OK);
-        var customer = await TestApi.RegisterCustomerAsync(_factory);
-
-        var slots = await SlotsAsync(customer, service, Monday);
-
-        slots.Select(s => s.StartTime).Should().Equal(Monday.AddHours(9), Monday.AddHours(10));
-        slots.Should().OnlyContain(s => s.StartTime.Kind == DateTimeKind.Unspecified);
-    }
-
-    [Fact]
-    public async Task Availability_ForADayInThePast_ShouldStillListSlots()
-    {
-        // CURRENT BEHAVIOR (bug): the endpoint does not filter out past slots even though booking them is
-        // rejected ("Cannot book in the past").
-        var owner = await TestApi.RegisterOwnerAsync(_factory);
-        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 60);
-        var pastMonday = new DateTime(2020, 1, 6);
-        pastMonday.DayOfWeek.Should().Be(DayOfWeek.Monday);
-        await TestApi.SetWorkingHoursAsync(owner, TestApi.Hours(DayOfWeek.Monday, 9, 10));
-        var customer = await TestApi.RegisterCustomerAsync(_factory);
-
-        StartHours(await SlotsAsync(customer, service, pastMonday)).Should().Equal(H(9));
     }
 }

@@ -23,8 +23,13 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
 
     // ---------- helpers ----------
 
+    /// <summary>Books a start given as a wall-clock value read as UTC (the default test company is in UTC).</summary>
     private static Task<HttpResponseMessage> BookAsync(
         TestUser customer, ServiceResponse service, DateTime start, string? notes = null) =>
+        BookAsync(customer, service, new DateTimeOffset(DateTime.SpecifyKind(start, DateTimeKind.Utc)), notes);
+
+    private static Task<HttpResponseMessage> BookAsync(
+        TestUser customer, ServiceResponse service, DateTimeOffset start, string? notes = null) =>
         customer.Client.PostAsJsonAsync("/api/reservations", new ReservationRequest(service.Id, start, notes));
 
     private static async Task<ReservationResponse> BookOkAsync(
@@ -180,8 +185,8 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
         body.ServiceId.Should().Be(service.Id);
         body.ServiceName.Should().Be(service.Name);
         body.ServiceDuration.Should().Be(45);
-        body.StartTime.Should().Be(start);
-        body.EndTime.Should().Be(start.AddMinutes(45));
+        body.StartTime.Should().Be(new DateTimeOffset(start));
+        body.EndTime.Should().Be(new DateTimeOffset(start.AddMinutes(45)));
         body.Status.Should().Be("Pending");
         body.Notes.Should().Be("Window seat");
         body.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));

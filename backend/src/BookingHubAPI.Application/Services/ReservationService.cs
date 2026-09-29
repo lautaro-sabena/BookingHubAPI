@@ -66,7 +66,7 @@ public class ReservationService : IReservationService
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-        var responses = reservations.Select(r => ToResponse(r, r.Customer.Email, r.Service)).ToList();
+        var responses = reservations.Select(r => ToResponse(r, r.Customer.Email, r.Service, r.Company)).ToList();
 
         return new PagedResult<ReservationResponse>(responses, totalCount, page, pageSize, totalPages);
     }
@@ -91,9 +91,13 @@ public class ReservationService : IReservationService
             return Error.Validation("Company not found or inactive");
         }
 
-        var endTime = request.StartTime.AddMinutes(service.DurationMinutes);
+        // Everything below works on absolute instants; only the opening-hours rule looks at company-local time.
+        var startInstant = request.StartTime.ToUniversalTime();
+        var endInstant = startInstant.AddMinutes(service.DurationMinutes);
+        var startTime = startInstant.UtcDateTime;
+        var endTime = endInstant.UtcDateTime;
 
-        if (await _reservationRepository.HasConflictAsync(service.CompanyId, service.Id, request.StartTime, endTime))
+        if (await _reservationRepository.HasConflictAsync(service.CompanyId, service.Id, startTime, endTime))
         {
             return Error.Conflict("Time slot is not available");
         }
@@ -108,7 +112,8 @@ public class ReservationService : IReservationService
 
         // The same rule the availability endpoint uses to offer slots, so a request is accepted
         // exactly when its whole interval fits inside the day's active working hours.
-        if (!BookingSchedule.IsWithinOpeningHours(company.WorkingHours, request.StartTime, endTime))
+        var zone = BookingSchedule.ResolveTimeZone(company.TimeZone);
+        if (!BookingSchedule.IsWithinOpeningHours(company.WorkingHours, zone, startInstant, endInstant))
         {
             return Error.Validation(OutsideWorkingHoursMessage);
         }
@@ -118,7 +123,7 @@ public class ReservationService : IReservationService
             CustomerId = userId,
             ServiceId = request.ServiceId,
             CompanyId = service.CompanyId,
-            StartTime = request.StartTime,
+            StartTime = startTime,
             EndTime = endTime,
             Status = ReservationStatus.Pending,
             Notes = request.Notes
@@ -130,7 +135,7 @@ public class ReservationService : IReservationService
 
         await _notificationService.SendReservationCreatedAsync(createdReservation.Id, user.Email, company.Name);
 
-        return ToResponse(createdReservation, user.Email, service);
+        return ToResponse(createdReservation, user.Email, service, company);
     }
 
     public async Task<Result<ReservationResponse>> ConfirmReservationAsync(Guid userId, Guid reservationId)
@@ -162,7 +167,7 @@ public class ReservationService : IReservationService
             await _notificationService.SendReservationConfirmedAsync(reservation.Id, customer.Email);
         }
 
-        return ToResponse(updatedReservation, customer?.Email ?? string.Empty, reservation.Service);
+        return ToResponse(updatedReservation, customer?.Email ?? string.Empty, reservation.Service, reservation.Company);
     }
 
     public async Task<Result<ReservationResponse>> CancelReservationAsync(Guid userId, Guid reservationId)
@@ -204,20 +209,25 @@ public class ReservationService : IReservationService
             await _notificationService.SendReservationCancelledAsync(reservation.Id, customer.Email, "Reservation cancelled");
         }
 
-        return ToResponse(updatedReservation, customer?.Email ?? string.Empty, reservation.Service);
+        return ToResponse(updatedReservation, customer?.Email ?? string.Empty, reservation.Service, reservation.Company);
     }
 
-    private static ReservationResponse ToResponse(Reservation reservation, string customerEmail, Domain.Entities.Service service) =>
-        new(
+    /// <summary>Times are stored as UTC instants and returned in the company's local time with its offset.</summary>
+    private static ReservationResponse ToResponse(
+        Reservation reservation, string customerEmail, Domain.Entities.Service service, Company? company)
+    {
+        var zone = BookingSchedule.ResolveTimeZone(company?.TimeZone);
+        return new ReservationResponse(
             reservation.Id,
             reservation.CustomerId,
             customerEmail,
             reservation.ServiceId,
             service.Name,
             service.DurationMinutes,
-            reservation.StartTime,
-            reservation.EndTime,
+            BookingSchedule.ToLocal(reservation.StartTime, zone),
+            BookingSchedule.ToLocal(reservation.EndTime, zone),
             reservation.Status.ToString(),
             reservation.Notes,
             reservation.CreatedAt);
+    }
 }

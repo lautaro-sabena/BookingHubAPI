@@ -169,7 +169,7 @@ public class ReservationServiceTests
 
     // ---------- create: booking hours ----------
 
-    private static DateTime OnWednesday(double hour) => new DateTime(2030, 1, 2).AddHours(hour);
+    private static DateTimeOffset OnWednesday(double hour) => new DateTimeOffset(2030, 1, 2, 0, 0, 0, TimeSpan.Zero).AddHours(hour);
 
     [Theory]
     [InlineData(7.0)]    // before opening (08:00)
@@ -227,9 +227,65 @@ public class ReservationServiceTests
     {
         // 2030-01-01 07:00 is both before "now" (08:00) and outside the working hours.
         var result = await _sut.CreateReservationAsync(
-            _customer.Id, new ReservationRequest(_service.Id, new DateTime(2030, 1, 1, 7, 0, 0), null));
+            _customer.Id, new ReservationRequest(_service.Id, new DateTimeOffset(2030, 1, 1, 7, 0, 0, TimeSpan.Zero), null));
 
         result.Error!.Message.Should().Be("Cannot book in the past");
+    }
+
+    // ---------- create: company time zone ----------
+
+    private const string BuenosAires = "America/Argentina/Buenos_Aires"; // UTC-03:00
+
+    [Theory]
+    [InlineData(11, false)]   // 08:00 local: exactly at opening
+    [InlineData(10, true)]    // 07:00 local: before opening (the UTC wall clock 10:00 would be inside)
+    [InlineData(20.25, false)] // 17:15 local: ends exactly at closing
+    [InlineData(21, true)]    // 18:00 local: at closing
+    public async Task Create_ReadsTheWorkingHoursInTheCompanyTimeZone(double utcHour, bool rejected)
+    {
+        _company.TimeZone = BuenosAires;
+
+        var result = await _sut.CreateReservationAsync(
+            _customer.Id, new ReservationRequest(_service.Id, OnWednesday(utcHour), null));
+
+        result.IsFailure.Should().Be(rejected);
+    }
+
+    [Fact]
+    public async Task Create_WithAnOffset_StoresAUtcInstantAndRespondsInCompanyLocalTime()
+    {
+        _company.TimeZone = BuenosAires;
+        var start = new DateTimeOffset(2030, 1, 2, 9, 0, 0, TimeSpan.FromHours(-3)); // 12:00Z
+        Reservation? saved = null;
+        _reservations.Setup(r => r.CreateAsync(It.IsAny<Reservation>()))
+            .ReturnsAsync((Reservation r) => { saved = r; r.Id = Guid.NewGuid(); r.CreatedAt = Now.UtcDateTime; return r; });
+
+        var result = await _sut.CreateReservationAsync(_customer.Id, new ReservationRequest(_service.Id, start, null));
+
+        result.IsSuccess.Should().BeTrue();
+        saved!.StartTime.Should().Be(new DateTime(2030, 1, 2, 12, 0, 0));
+        saved.StartTime.Kind.Should().Be(DateTimeKind.Utc);
+        saved.EndTime.Should().Be(new DateTime(2030, 1, 2, 12, 45, 0));
+        _reservations.Verify(r => r.HasConflictAsync(
+            _company.Id, _service.Id, saved.StartTime, saved.EndTime, null), Times.Once);
+        result.Value.StartTime.Should().Be(start);
+        result.Value.StartTime.Offset.Should().Be(TimeSpan.FromHours(-3));
+        result.Value.EndTime.Should().Be(start.AddMinutes(45));
+        result.Value.EndTime.Offset.Should().Be(TimeSpan.FromHours(-3));
+    }
+
+    [Fact]
+    public async Task Confirm_RespondsInTheCompanyLocalTimeOfTheStoredInstant()
+    {
+        _company.TimeZone = BuenosAires;
+        var reservation = GivenReservation(ReservationStatus.Pending);
+        reservation.StartTime = new DateTime(2030, 1, 2, 12, 0, 0, DateTimeKind.Utc);
+        reservation.EndTime = reservation.StartTime.AddMinutes(45);
+
+        var result = await _sut.ConfirmReservationAsync(_owner.Id, reservation.Id);
+
+        result.Value.StartTime.Should().Be(new DateTimeOffset(2030, 1, 2, 9, 0, 0, TimeSpan.FromHours(-3)));
+        result.Value.StartTime.Offset.Should().Be(TimeSpan.FromHours(-3));
     }
 
     [Fact]
