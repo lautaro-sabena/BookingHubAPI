@@ -185,8 +185,8 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
         body.ServiceId.Should().Be(service.Id);
         body.ServiceName.Should().Be(service.Name);
         body.ServiceDuration.Should().Be(45);
-        body.StartTime.Should().Be(new DateTimeOffset(start));
-        body.EndTime.Should().Be(new DateTimeOffset(start.AddMinutes(45)));
+        body.StartTime.Should().Be(new DateTimeOffset(DateTime.SpecifyKind(start, DateTimeKind.Utc)));
+        body.EndTime.Should().Be(new DateTimeOffset(DateTime.SpecifyKind(start.AddMinutes(45), DateTimeKind.Utc)));
         body.Status.Should().Be("Pending");
         body.Notes.Should().Be("Window seat");
         body.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));

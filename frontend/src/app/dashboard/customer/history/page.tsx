@@ -75,9 +75,9 @@ export default function CustomerHistoryPage() {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
-  // Sort by date, most recent first
+  // Sort by the real instant (not the company wall clock), most recent first
   const sortedReservations = [...reservations].sort(
-    (a, b) => toCompanyLocalDate(b.startTime).getTime() - toCompanyLocalDate(a.startTime).getTime()
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
   );
 
   return (
