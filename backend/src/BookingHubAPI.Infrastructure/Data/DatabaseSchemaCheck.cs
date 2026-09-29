@@ -19,7 +19,18 @@ public static class DatabaseSchemaCheck
             return Array.Empty<string>();
         }
 
-        var pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
+        List<string> pending;
+        try
+        {
+            pending = (await context.Database.GetPendingMigrationsAsync()).ToList();
+        }
+        catch (Exception ex) when (!failOnPending)
+        {
+            // With the check off (the Development default) an unreachable database must not stop startup.
+            logger.LogWarning(ex, "Could not check the database schema for pending migrations.");
+            return Array.Empty<string>();
+        }
+
         if (pending.Count == 0)
         {
             return pending;
