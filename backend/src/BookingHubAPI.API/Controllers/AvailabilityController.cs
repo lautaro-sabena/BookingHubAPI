@@ -1,9 +1,8 @@
+using BookingHubAPI.API.Extensions;
 using BookingHubAPI.Application.DTOs;
-using BookingHubAPI.Domain.Entities;
-using BookingHubAPI.Domain.Interfaces;
+using BookingHubAPI.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Globalization;
 
 namespace BookingHubAPI.API.Controllers;
 
@@ -12,18 +11,11 @@ namespace BookingHubAPI.API.Controllers;
 [Authorize]
 public class AvailabilityController : ControllerBase
 {
-    private readonly IServiceRepository _serviceRepository;
-    private readonly ICompanyRepository _companyRepository;
-    private readonly IReservationRepository _reservationRepository;
+    private readonly IAvailabilityService _availabilityService;
 
-    public AvailabilityController(
-        IServiceRepository serviceRepository,
-        ICompanyRepository companyRepository,
-        IReservationRepository reservationRepository)
+    public AvailabilityController(IAvailabilityService availabilityService)
     {
-        _serviceRepository = serviceRepository;
-        _companyRepository = companyRepository;
-        _reservationRepository = reservationRepository;
+        _availabilityService = availabilityService;
     }
 
     [HttpGet("{serviceId}")]
@@ -31,46 +23,7 @@ public class AvailabilityController : ControllerBase
         Guid serviceId,
         [FromQuery] DateTime date)
     {
-        var service = await _serviceRepository.GetByIdAsync(serviceId);
-        if (service == null || !service.IsActive)
-        {
-            return Problem(detail: "Service not found or inactive", statusCode: StatusCodes.Status404NotFound);
-        }
-
-        var company = await _companyRepository.GetByIdWithWorkingHoursAsync(service.CompanyId);
-        if (company == null || !company.IsActive)
-        {
-            return Problem(detail: "Company not found or inactive", statusCode: StatusCodes.Status404NotFound);
-        }
-
-        var dayOfWeek = date.DayOfWeek;
-        var workingHours = company.WorkingHours.FirstOrDefault(wh => wh.DayOfWeek == dayOfWeek && wh.IsActive);
-
-        if (workingHours == null)
-        {
-            return Ok(new List<AvailableSlotResponse>());
-        }
-
-        var slots = new List<AvailableSlotResponse>();
-        var startTime = workingHours.StartTime;
-        var endTime = workingHours.EndTime;
-        var slotDuration = service.DurationMinutes;
-
-        var currentSlot = date.Date.Add(startTime);
-        var endDateTime = date.Date.Add(endTime);
-
-        while (currentSlot.AddMinutes(slotDuration) <= endDateTime)
-        {
-            var slotEnd = currentSlot.AddMinutes(slotDuration);
-
-            var hasConflict = await _reservationRepository.HasConflictAsync(
-                service.CompanyId, serviceId, currentSlot, slotEnd);
-
-            slots.Add(new AvailableSlotResponse(currentSlot, slotEnd, !hasConflict));
-
-            currentSlot = currentSlot.AddMinutes(slotDuration);
-        }
-
-        return Ok(slots.Where(s => s.IsAvailable));
+        var result = await _availabilityService.GetAvailableSlotsAsync(serviceId, date);
+        return this.ToActionResult(result, Ok);
     }
 }
