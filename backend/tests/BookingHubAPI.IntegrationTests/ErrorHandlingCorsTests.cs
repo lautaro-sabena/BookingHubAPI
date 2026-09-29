@@ -1,4 +1,5 @@
 using System.Net;
+using BookingHubAPI.IntegrationTests.Support;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -57,6 +58,16 @@ public class ErrorHandlingCorsTests : IClassFixture<ErrorHandlingCorsTests.Throw
 
         response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
         response.Headers.GetValues("Access-Control-Allow-Origin").Should().ContainSingle(allowedOrigin!);
+    }
+
+    [Fact]
+    public async Task UnhandledException_ShouldReturnGenericProblemWithoutExceptionDetails()
+    {
+        var response = await _factory.CreateClient().GetAsync(ThrowingPath);
+
+        var problem = await response.ShouldBeProblemAsync(HttpStatusCode.InternalServerError, "An unexpected error occurred.");
+        var raw = System.Text.Json.JsonSerializer.Serialize(problem);
+        raw.Should().NotContain("Test-only").And.NotContain("ErrorHandlingCorsTests").And.NotContain("StackTrace");
     }
 
     public class ThrowingEndpointApiFactory : BookingApiFactory

@@ -44,9 +44,7 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
 
     private static async Task AssertErrorAsync(HttpResponseMessage response, HttpStatusCode status, string message)
     {
-        response.StatusCode.Should().Be(status);
-        var body = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        body.Should().ContainKey("error").WhoseValue.Should().Be(message);
+        await response.ShouldBeProblemAsync(status, message);
     }
 
     private static async Task<PagedResult<ReservationResponse>> ListAsync(TestUser user, string query = "")

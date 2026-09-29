@@ -19,18 +19,18 @@ public class ClaimsPrincipalExtensionsTests
     }
 
     [Fact]
-    public void GetUserId_ShouldThrowArgumentNullException_WhenClaimIsMissing()
+    public void GetUserId_ShouldThrowInvalidUserIdentityException_WhenClaimIsMissing()
     {
         var principal = PrincipalWith(new Claim(ClaimTypes.Email, "user@test.com"));
 
-        Assert.Throws<ArgumentNullException>(() => principal.GetUserId());
+        Assert.Throws<InvalidUserIdentityException>(() => principal.GetUserId());
     }
 
     [Fact]
-    public void GetUserId_ShouldThrowFormatException_WhenClaimIsNotAGuid()
+    public void GetUserId_ShouldThrowInvalidUserIdentityException_WhenClaimIsNotAGuid()
     {
         var principal = PrincipalWith(new Claim(ClaimTypes.NameIdentifier, "not-a-guid"));
 
-        Assert.Throws<FormatException>(() => principal.GetUserId());
+        Assert.Throws<InvalidUserIdentityException>(() => principal.GetUserId());
     }
 }

@@ -34,13 +34,13 @@ public class AvailabilityController : ControllerBase
         var service = await _serviceRepository.GetByIdAsync(serviceId);
         if (service == null || !service.IsActive)
         {
-            return NotFound(new { error = "Service not found or inactive" });
+            return Problem(detail: "Service not found or inactive", statusCode: StatusCodes.Status404NotFound);
         }
 
         var company = await _companyRepository.GetByIdWithWorkingHoursAsync(service.CompanyId);
         if (company == null || !company.IsActive)
         {
-            return NotFound(new { error = "Company not found or inactive" });
+            return Problem(detail: "Company not found or inactive", statusCode: StatusCodes.Status404NotFound);
         }
 
         var dayOfWeek = date.DayOfWeek;

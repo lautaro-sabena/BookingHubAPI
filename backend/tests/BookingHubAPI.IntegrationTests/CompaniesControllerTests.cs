@@ -121,8 +121,7 @@ public class CompaniesControllerTests : IClassFixture<BookingApiFactory>
         var response = await owner.Client.PostAsJsonAsync("/api/companies", new CompanyRequest("Second", null, "UTC"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.GetProperty("error").GetString().Should().Be("You already have a company");
+        (await response.ReadProblemAsync()).Detail.Should().Be("You already have a company");
         (await GetMineAsync(owner)).Should().Be(before);
     }
 
@@ -198,7 +197,7 @@ public class CompaniesControllerTests : IClassFixture<BookingApiFactory>
         var response = await owner.Client.PostAsJsonAsync("/api/companies", new CompanyRequest("Acme", null, "Not/AZone"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync()).Should().Contain("Invalid time zone");
+        (await response.ReadProblemAsync()).Detail.Should().Contain("Invalid time zone");
         (await owner.Client.GetAsync("/api/companies/me")).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
