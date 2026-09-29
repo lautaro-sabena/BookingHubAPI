@@ -15,7 +15,7 @@ public static class ResultExtensions
         result.IsSuccess ? onSuccess(result.Value) : controller.ToFailureResult(result.Error!);
 
     /// <summary>
-    /// Validation and conflict errors carry their message as <c>{ "error": message }</c> (400 / 409).
+    /// Validation, conflict and unauthorized errors carry their message as <c>{ "error": message }</c> (400 / 409 / 401).
     /// Not-found and forbidden errors are empty 404 / 403 responses so nothing about the
     /// resource is disclosed.
     /// </summary>
@@ -24,6 +24,7 @@ public static class ResultExtensions
         {
             ErrorKind.Validation => controller.BadRequest(new { error = error.Message }),
             ErrorKind.Conflict => controller.Conflict(new { error = error.Message }),
+            ErrorKind.Unauthorized => controller.Unauthorized(new { error = error.Message }),
             ErrorKind.NotFound => controller.NotFound(),
             ErrorKind.Forbidden => controller.Forbid(),
             _ => throw new ArgumentOutOfRangeException(nameof(error), error.Kind, "Unmapped error kind")

@@ -6,7 +6,8 @@ public enum ErrorKind
     Validation,
     NotFound,
     Forbidden,
-    Conflict
+    Conflict,
+    Unauthorized
 }
 
 /// <summary>An expected failure: a category the caller can map to a transport response, plus a message.</summary>
@@ -16,6 +17,7 @@ public sealed record Error(ErrorKind Kind, string Message)
     public static Error NotFound(string message) => new(ErrorKind.NotFound, message);
     public static Error Forbidden(string message) => new(ErrorKind.Forbidden, message);
     public static Error Conflict(string message) => new(ErrorKind.Conflict, message);
+    public static Error Unauthorized(string message) => new(ErrorKind.Unauthorized, message);
 }
 
 /// <summary>Outcome of a use case that returns no value.</summary>
