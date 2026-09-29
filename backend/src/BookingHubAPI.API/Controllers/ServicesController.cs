@@ -1,6 +1,7 @@
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Application.Services;
 using BookingHubAPI.Domain.Entities;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BookingHubAPI.API.Extensions;
@@ -22,8 +23,8 @@ public class ServicesController : ControllerBase
     [HttpGet]
     [Authorize(Roles = RoleNames.Owner)]
     public async Task<ActionResult<PagedResult<ServiceResponse>>> GetServices(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10,
+        [FromQuery, Range(1, PagingLimits.MaxPage)] int page = 1,
+        [FromQuery, Range(1, PagingLimits.MaxPageSize)] int pageSize = 10,
         [FromQuery] string? search = null)
     {
         var result = await _serviceCatalog.GetOwnServicesAsync(User.GetUserId(), page, pageSize, search);
@@ -32,8 +33,8 @@ public class ServicesController : ControllerBase
 
     [HttpGet("all")]
     public async Task<ActionResult<PagedResult<ServiceResponse>>> GetAllServices(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery, Range(1, PagingLimits.MaxPage)] int page = 1,
+        [FromQuery, Range(1, PagingLimits.MaxPageSize)] int pageSize = 10)
     {
         return Ok(await _serviceCatalog.GetPublicServicesAsync(page, pageSize));
     }

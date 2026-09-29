@@ -184,7 +184,7 @@ public class ServicesControllerTests : IClassFixture<BookingApiFactory>
         var hiddenByCompany = await TestApi.CreateServiceAsync(inactiveCompanyOwner);
         await TestApi.DeactivateCompanyAsync(_factory, hiddenByCompany.CompanyId);
 
-        var page = await ListAsync(customer, "/api/services/all?pageSize=1000");
+        var page = await ListAsync(customer, "/api/services/all?pageSize=100");
 
         var ids = page.Items.Select(s => s.Id).ToList();
         ids.Should().Contain(visible.Id);
@@ -200,7 +200,7 @@ public class ServicesControllerTests : IClassFixture<BookingApiFactory>
         var otherOwner = await TestApi.RegisterOwnerAsync(_factory);
         var theirs = await TestApi.CreateServiceAsync(otherOwner);
 
-        var page = await ListAsync(owner, "/api/services/all?pageSize=1000");
+        var page = await ListAsync(owner, "/api/services/all?pageSize=100");
 
         page.Items.Select(s => s.Id).Should().Contain(theirs.Id);
     }
@@ -587,7 +587,7 @@ public class ServicesControllerTests : IClassFixture<BookingApiFactory>
         second.StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await GetOkAsync(owner, service.Id)).IsActive.Should().BeFalse();
         (await ListAsync(owner, "/api/services")).Items.Should().BeEmpty();
-        (await ListAsync(customer, "/api/services/all?pageSize=1000")).Items
+        (await ListAsync(customer, "/api/services/all?pageSize=100")).Items
             .Select(s => s.Id).Should().NotContain(service.Id);
     }
 }
