@@ -17,6 +17,9 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using AspNetCoreRateLimit;
 
+// Keeps DateTime mapped to "timestamp without time zone" - the schema production was created with. The design-time
+// factory (BookingDbContextFactory) sets the same switch. The schema is NOT created here: apply the EF migrations
+// (see backend/README.md, "Database migrations runbook").
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
@@ -127,12 +130,6 @@ app.UseIpRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
-    db.Database.EnsureCreated();
-}
 
 app.MapControllers();
 
