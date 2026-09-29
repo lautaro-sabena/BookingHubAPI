@@ -111,14 +111,57 @@ public class FavoriteServiceTests
     }
 
     [Fact]
-    public async Task RemoveFavorite_ShouldOnlyEverTargetTheCallersOwnFavorites()
+    public async Task RemoveFavorite_ShouldScopeTheRemovalToTheCallersOwnId()
     {
+        // The service has no ownership rule of its own: it only stays safe by always passing the
+        // caller's id to the repository, which deletes by (customer, service). Persistence-level
+        // ownership is covered by the favorites integration tests.
         var otherCustomer = Guid.NewGuid();
+        _favorites.Setup(f => f.RemoveAsync(_customerId, _service.Id)).ReturnsAsync(true);
 
-        await _sut.RemoveFavoriteAsync(_customerId, _service.Id);
+        var mine = await _sut.RemoveFavoriteAsync(_customerId, _service.Id);
+        var theirs = await _sut.RemoveFavoriteAsync(otherCustomer, _service.Id);
 
+        mine.IsSuccess.Should().BeTrue();
+        theirs.Error!.Kind.Should().Be(ErrorKind.NotFound);
         _favorites.Verify(f => f.RemoveAsync(_customerId, _service.Id), Times.Once);
-        _favorites.Verify(f => f.RemoveAsync(otherCustomer, It.IsAny<Guid>()), Times.Never);
+        _favorites.Verify(f => f.RemoveAsync(otherCustomer, _service.Id), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddFavorite_ForInactiveService_ShouldReturnNotFoundAndStoreNothing()
+    {
+        _service.IsActive = false;
+
+        var result = await _sut.AddFavoriteAsync(_customerId, _service.Id);
+
+        result.Error!.Kind.Should().Be(ErrorKind.NotFound);
+        result.Error.Message.Should().Be("Service not found");
+        _favorites.Verify(f => f.AddAsync(It.IsAny<Favorite>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AddFavorite_ForServiceOfInactiveCompany_ShouldReturnNotFoundAndStoreNothing()
+    {
+        _company.IsActive = false;
+
+        var result = await _sut.AddFavoriteAsync(_customerId, _service.Id);
+
+        result.Error!.Kind.Should().Be(ErrorKind.NotFound);
+        result.Error.Message.Should().Be("Service not found");
+        _favorites.Verify(f => f.AddAsync(It.IsAny<Favorite>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task AddFavorite_ForHiddenService_ShouldNotRevealWhetherItWasAlreadyFavorited()
+    {
+        _service.IsActive = false;
+        _favorites.Setup(f => f.GetByCustomerAndServiceAsync(_customerId, _service.Id))
+            .ReturnsAsync(new Favorite { CustomerId = _customerId, ServiceId = _service.Id });
+
+        var result = await _sut.AddFavoriteAsync(_customerId, _service.Id);
+
+        result.Error!.Kind.Should().Be(ErrorKind.NotFound);
     }
 
     [Theory]
