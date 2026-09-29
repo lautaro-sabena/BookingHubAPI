@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import api from "@/lib/api";
+import { toCompanyLocalDate, toDateInputValue } from "@/lib/dateTime";
 import { Service, Reservation, AvailableSlot } from "@/types";
 
 export default function BookServicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -57,7 +58,7 @@ export default function BookServicePage({ params }: { params: Promise<{ id: stri
     setSlotsLoading(true);
     setSelectedSlot(null);
     try {
-      const dateStr = date.toISOString().split("T")[0];
+      const dateStr = toDateInputValue(date);
       const response = await api.get<AvailableSlot[]>(`/availability/${id}?date=${dateStr}`);
       setAvailableSlots(response.data);
     } catch (err) {
@@ -109,7 +110,7 @@ export default function BookServicePage({ params }: { params: Promise<{ id: stri
   };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toCompanyLocalDate(dateString);
     return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 

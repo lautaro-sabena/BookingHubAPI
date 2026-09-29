@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/api";
+import { toCompanyLocalDate } from "@/lib/dateTime";
 import { Reservation } from "@/types";
 
 export default function CustomerHistoryPage() {
@@ -37,7 +38,7 @@ export default function CustomerHistoryPage() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toCompanyLocalDate(dateString);
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       year: "numeric",
@@ -47,7 +48,7 @@ export default function CustomerHistoryPage() {
   };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toCompanyLocalDate(dateString);
     return date.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
@@ -76,7 +77,7 @@ export default function CustomerHistoryPage() {
 
   // Sort by date, most recent first
   const sortedReservations = [...reservations].sort(
-    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    (a, b) => toCompanyLocalDate(b.startTime).getTime() - toCompanyLocalDate(a.startTime).getTime()
   );
 
   return (

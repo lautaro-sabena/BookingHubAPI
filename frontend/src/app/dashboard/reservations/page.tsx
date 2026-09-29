@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/api";
+import { toCompanyLocalDate } from "@/lib/dateTime";
 import { Reservation } from "@/types";
 
 export default function OwnerReservationsPage() {
@@ -85,7 +86,7 @@ export default function OwnerReservationsPage() {
                       Customer: {reservation.customerEmail}
                     </p>
                     <p className="text-sm">
-                      {new Date(reservation.startTime).toLocaleString()}
+                      {toCompanyLocalDate(reservation.startTime).toLocaleString()}
                     </p>
                   </div>
                   {reservation.status === "Pending" && (

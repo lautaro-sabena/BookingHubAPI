@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/api";
+import { toCompanyLocalDate } from "@/lib/dateTime";
 import { Reservation } from "@/types";
 
 export default function BookingsPage() {
@@ -77,7 +78,7 @@ export default function BookingsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  {new Date(reservation.startTime).toLocaleString()}
+                  {toCompanyLocalDate(reservation.startTime).toLocaleString()}
                 </p>
                 {(reservation.status === "Pending" || reservation.status === "Confirmed") && (
                   <Button 
