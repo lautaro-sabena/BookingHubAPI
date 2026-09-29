@@ -44,7 +44,11 @@ controllers, an empty Application layer, and thin tests around the risky paths.
   - #12 `refactor/hardening-12-auth-tests` (base #11): 2a09339 — T6b tests. ~1010 (tests only).
   - #13 `refactor/hardening-13-auth-service` (base #12): 094ee3b — T6b refactor. ~1070 (size:exception).
   - #14 `refactor/hardening-14-favorites-visibility` (base #13): e6e6204..8810b52 — T6d security fix. ~40.
-  - Next slices continue from `refactor/project-hardening` on top of #14; retarget each PR to main after its parent merges.
+  - #15 `refactor/hardening-15-working-hours-validation` (base #14): d973f2c..a365202 — T6c working hours. ~230.
+  - #16 `refactor/hardening-16-auth-fixes` (base #15): a4d97bc..2fa421f — T6c auth + favorites tests. ~285.
+  - #17 `refactor/hardening-17-problem-details` (base #16): 972adb7 — T7 problem details. ~400.
+  - #18 `refactor/hardening-18-paging-frontend-errors` (base #17): bfec282..46b634d — T7 paging, frontend helper, review follow-ups. ~225.
+  - Next slices continue from `refactor/project-hardening` on top of #18; retarget each PR to main after its parent merges.
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks
