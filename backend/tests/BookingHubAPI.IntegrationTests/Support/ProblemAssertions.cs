@@ -14,7 +14,8 @@ public static class ProblemAssertions
     /// </summary>
     public static async Task<ProblemDetails> ReadProblemAsync(this HttpResponseMessage response)
     {
-        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+        response.Content.Headers.ContentType.Should().NotBeNull();
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         problem.Should().NotBeNull();
         problem!.Status.Should().Be((int)response.StatusCode);

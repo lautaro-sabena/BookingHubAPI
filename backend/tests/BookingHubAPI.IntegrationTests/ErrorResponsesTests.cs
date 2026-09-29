@@ -139,6 +139,18 @@ public class ErrorResponsesTests : IClassFixture<BookingApiFactory>
         await response.ShouldBeProblemAsync(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task HandledException_WhenClientOnlyAcceptsHtml_ShouldStillReturnTheErrorStatus()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token());
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
+
+        var response = await client.GetAsync("/api/favorites");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
     private async Task<HttpResponseMessage> GetFavoritesWithTokenAsync(string token)
     {
         var client = _factory.CreateClient();

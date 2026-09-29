@@ -64,10 +64,17 @@ public class ErrorHandlingMiddleware
 
         // CORS headers are already applied (or withheld) by UseCors against the configured
         // whitelist; setting them here would bypass it.
-        await _problemDetailsService.WriteAsync(new ProblemDetailsContext
+        var written = await _problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
             HttpContext = context,
             ProblemDetails = problem
         });
+
+        // WriteAsync would throw from inside this handler when no writer accepts the request
+        // (e.g. a restrictive Accept header); fall back to plain problem+json instead.
+        if (!written)
+        {
+            await context.Response.WriteAsJsonAsync(problem, (System.Text.Json.JsonSerializerOptions?)null, "application/problem+json");
+        }
     }
 }
