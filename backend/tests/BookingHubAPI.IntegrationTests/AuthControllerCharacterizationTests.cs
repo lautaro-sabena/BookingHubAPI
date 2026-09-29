@@ -140,24 +140,20 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
         (await ErrorOf(response)).Should().Be("Invalid role. Must be 'Owner' or 'Customer'");
     }
 
-    [Fact]
-    public async Task Register_WithUndefinedNumericRole_ShouldSucceedWithThatRole()
+    [Theory]
+    [InlineData("5")]
+    [InlineData("0")]
+    [InlineData("1")]
+    public async Task Register_WithNumericRole_ShouldReturnBadRequestAndNotCreateTheUser(string role)
     {
-        // CURRENT BEHAVIOR (bug): Enum.TryParse accepts any number, so "5" passes the role check and
-        // creates a user whose role is neither Owner nor Customer. It is harmless for authorization
-        // (every [Authorize(Roles = ...)] rejects it) but the role validation is porous.
         var email = UniqueEmail();
 
-        var response = await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "Password123!", "5"));
+        var response = await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "Password123!", role));
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var registered = (await response.Content.ReadFromJsonAsync<TokenResponse>())!;
-        registered.Role.Should().Be("5");
-
-        var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", registered.Token);
-        (await client.GetAsync("/api/favorites")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await client.GetAsync("/api/services")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await ErrorOf(response)).Should().Be("Invalid role. Must be 'Owner' or 'Customer'");
+        (await _anonymous.PostAsJsonAsync("/api/auth/login", new LoginRequest(email, "Password123!")))
+            .StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -198,10 +194,8 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
     }
 
     [Fact]
-    public async Task Register_EmailsDifferingOnlyByCase_AreTreatedAsDifferentUsers()
+    public async Task Register_EmailsDifferingOnlyByCase_AreTheSameUser()
     {
-        // CURRENT BEHAVIOR (bug): e-mail uniqueness and lookup are case-sensitive, so
-        // "Name@x.com" and "name@x.com" can both register and log in as separate accounts.
         var lower = UniqueEmail();
         var upper = lower.ToUpperInvariant();
 
@@ -209,9 +203,20 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
         var second = await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(upper, "Password123!", "Customer"));
 
         first.StatusCode.Should().Be(HttpStatusCode.OK);
-        second.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await first.Content.ReadFromJsonAsync<TokenResponse>())!.UserId
-            .Should().NotBe((await second.Content.ReadFromJsonAsync<TokenResponse>())!.UserId);
+        second.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await ErrorOf(second)).Should().Be("Email already registered");
+    }
+
+    [Fact]
+    public async Task Register_ShouldStoreAndReturnTheEmailTrimmedAndLowerCased()
+    {
+        var email = UniqueEmail();
+
+        var response = await _anonymous.PostAsJsonAsync(
+            "/api/auth/register", new RegisterRequest($"  {email.ToUpperInvariant()}", "Password123!", "Customer"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Email.Should().Be(email);
     }
 
     [Theory]
@@ -281,16 +286,15 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
     }
 
     [Fact]
-    public async Task Login_EmailIsCaseSensitive()
+    public async Task Login_EmailIsCaseInsensitive()
     {
-        // CURRENT BEHAVIOR (bug): the e-mail lookup is an exact match, so the upper-cased address of a
-        // registered user is rejected as unknown.
         var email = UniqueEmail();
         await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "Password123!", "Customer"));
 
         var response = await _anonymous.PostAsJsonAsync("/api/auth/login", new LoginRequest(email.ToUpperInvariant(), "Password123!"));
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Email.Should().Be(email);
     }
 
     [Theory]

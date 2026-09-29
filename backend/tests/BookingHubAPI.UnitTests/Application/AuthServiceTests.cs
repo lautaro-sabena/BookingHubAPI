@@ -38,6 +38,9 @@ public class AuthServiceTests
     [Theory]
     [InlineData("Admin")]
     [InlineData("")]
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("5")]
     public async Task Register_WithUnknownRole_ShouldReturnValidationErrorAndWriteNothing(string role)
     {
         var result = await _sut.RegisterAsync(new RegisterRequest("a@test.com", "Password123!", role));
@@ -104,6 +107,22 @@ public class AuthServiceTests
         _jwt.Verify(j => j.GenerateToken(result.Value.UserId, "o@test.com", "Owner", created.Id), Times.Once);
     }
 
+    [Fact]
+    public async Task Register_ShouldNormalizeTheEmailForTheUniquenessCheckAndStorage()
+    {
+        _users.Setup(u => u.ExistsAsync("mixed@test.com")).ReturnsAsync(true);
+
+        var duplicate = await _sut.RegisterAsync(new RegisterRequest("  Mixed@Test.com ", "Password123!", "Customer"));
+
+        duplicate.Error!.Message.Should().Be("Email already registered");
+
+        var created = await _sut.RegisterAsync(new RegisterRequest(" New@Test.COM", "Password123!", "Owner"));
+
+        created.Value.Email.Should().Be("new@test.com");
+        _users.Verify(u => u.CreateAsync(It.Is<User>(x => x.Email == "new@test.com")), Times.Once);
+        _companies.Verify(c => c.CreateAsync(It.Is<Company>(x => x.Name == "new@test.com's Company")), Times.Once);
+    }
+
     private static bool Capture(Company company, out Company? captured)
     {
         captured = company;
@@ -137,6 +156,37 @@ public class AuthServiceTests
         result.Error!.Kind.Should().Be(ErrorKind.Unauthorized);
         result.Error.Message.Should().Be("Invalid email or password");
         _jwt.Verify(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Login_ShouldLookTheNormalizedEmailUp()
+    {
+        var user = new User { Id = Guid.NewGuid(), Email = "o@test.com", PasswordHash = "hash:Password123!", Role = UserRole.Customer };
+        _users.Setup(u => u.GetByEmailAsync("o@test.com")).ReturnsAsync(user);
+
+        var result = await _sut.LoginAsync(new LoginRequest(" O@Test.COM ", "Password123!"));
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Login_WithUnknownEmail_ShouldStillVerifyAPasswordSoBothPathsCostTheSame()
+    {
+        await _sut.LoginAsync(new LoginRequest("ghost@test.com", "Password123!"));
+
+        _hasher.Verify(h => h.Verify("Password123!", It.IsAny<string>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Login_WithKnownEmail_ShouldVerifyAgainstTheStoredHashExactlyOnce()
+    {
+        _users.Setup(u => u.GetByEmailAsync("c@test.com"))
+            .ReturnsAsync(new User { Id = Guid.NewGuid(), Email = "c@test.com", PasswordHash = "hash:Right1!", Role = UserRole.Customer });
+
+        await _sut.LoginAsync(new LoginRequest("c@test.com", "Wrong1!"));
+
+        _hasher.Verify(h => h.Verify("Wrong1!", "hash:Right1!"), Times.Once);
+        _hasher.Verify(h => h.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Once);
     }
 
     [Fact]

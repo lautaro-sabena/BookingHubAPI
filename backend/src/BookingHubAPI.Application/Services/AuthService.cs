@@ -27,19 +27,21 @@ public class AuthService : IAuthService
 
     public async Task<Result<TokenResponse>> RegisterAsync(RegisterRequest request)
     {
-        if (!Enum.TryParse<UserRole>(request.Role, true, out var role))
+        if (!TryParseRole(request.Role, out var role))
         {
             return Error.Validation("Invalid role. Must be 'Owner' or 'Customer'");
         }
 
-        if (await _userRepository.ExistsAsync(request.Email))
+        var email = NormalizeEmail(request.Email);
+
+        if (await _userRepository.ExistsAsync(email))
         {
             return Error.Validation("Email already registered");
         }
 
         var user = new User
         {
-            Email = request.Email,
+            Email = email,
             PasswordHash = _passwordHasher.Hash(request.Password),
             Role = role
         };
@@ -52,7 +54,7 @@ public class AuthService : IAuthService
         {
             var company = new Company
             {
-                Name = $"{request.Email}'s Company",
+                Name = $"{email}'s Company",
                 OwnerId = createdUser.Id,
                 TimeZone = "UTC"
             };
@@ -66,15 +68,35 @@ public class AuthService : IAuthService
 
     public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request)
     {
-        var user = await _userRepository.GetByEmailAsync(request.Email);
+        var user = await _userRepository.GetByEmailAsync(NormalizeEmail(request.Email));
 
-        if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
+        // Verify against a dummy hash when the e-mail is unknown so both paths cost one hash
+        // verification and response time does not reveal which e-mails are registered.
+        var passwordHash = user?.PasswordHash ?? DummyPasswordHash();
+        var passwordMatches = _passwordHasher.Verify(request.Password, passwordHash);
+
+        if (user == null || !passwordMatches)
         {
             return Error.Unauthorized("Invalid email or password");
         }
 
         return ToTokenResponse(user);
     }
+
+    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+
+    /// <summary>Only the role names are accepted; numeric strings that <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/> would take are not.</summary>
+    private static bool TryParseRole(string value, out UserRole role)
+    {
+        var name = Enum.GetNames<UserRole>().FirstOrDefault(n => n.Equals(value?.Trim(), StringComparison.OrdinalIgnoreCase));
+        role = name == null ? default : Enum.Parse<UserRole>(name);
+        return name != null;
+    }
+
+    // Hashed once per process with the configured hasher, so its cost always matches real hashes.
+    private static string? _dummyPasswordHash;
+
+    private string DummyPasswordHash() => _dummyPasswordHash ??= _passwordHasher.Hash("dummy-password-for-timing");
 
     private TokenResponse ToTokenResponse(User user)
     {

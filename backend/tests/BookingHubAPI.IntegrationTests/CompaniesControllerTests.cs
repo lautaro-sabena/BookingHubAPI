@@ -190,17 +190,43 @@ public class CompaniesControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
-    public async Task CreateCompany_WithUnknownTimeZone_ShouldBeAccepted()
+    public async Task CreateCompany_WithUnknownTimeZone_ShouldReturnBadRequestAndNotCreateTheCompany()
     {
-        // CURRENT BEHAVIOR (bug): the time zone is only length-validated, so a value that is not
-        // a real zone id is stored as-is.
         var owner = await TestApi.RegisterOwnerAsync(_factory);
         await TestApi.RemoveCompanyAsync(_factory, owner.UserId);
 
         var response = await owner.Client.PostAsJsonAsync("/api/companies", new CompanyRequest("Acme", null, "Not/AZone"));
 
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().Contain("Invalid time zone");
+        (await owner.Client.GetAsync("/api/companies/me")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Theory]
+    [InlineData("UTC")]
+    [InlineData("America/Argentina/Buenos_Aires")]
+    public async Task CreateCompany_WithKnownIanaTimeZone_ShouldBeAccepted(string timeZone)
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        await TestApi.RemoveCompanyAsync(_factory, owner.UserId);
+
+        var response = await owner.Client.PostAsJsonAsync("/api/companies", new CompanyRequest("Acme", null, timeZone));
+
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        (await GetMineAsync(owner)).TimeZone.Should().Be("Not/AZone");
+        (await GetMineAsync(owner)).TimeZone.Should().Be(timeZone);
+    }
+
+    [Fact]
+    public async Task UpdateMyCompany_WithUnknownTimeZone_ShouldReturnBadRequestAndKeepTheCurrentOne()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+
+        var response = await owner.Client.PutAsJsonAsync("/api/companies/me", new CompanyUpdateRequest("Renamed", null, "Not/AZone"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var company = await GetMineAsync(owner);
+        company.TimeZone.Should().Be("UTC");
+        company.Name.Should().NotBe("Renamed");
     }
 
     // ---------- PUT /api/companies/me ----------
