@@ -21,7 +21,9 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+        // E-mails are stored lower-cased (unique index on "Email"), so an exact match is enough and can use the index.
+        var normalized = Normalize(email);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email == normalized);
     }
 
     public async Task<IEnumerable<User>> GetAllAsync()
@@ -48,6 +50,9 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> ExistsAsync(string email)
     {
-        return await _context.Users.AnyAsync(u => u.Email.ToLower() == email.ToLower());
+        var normalized = Normalize(email);
+        return await _context.Users.AnyAsync(u => u.Email == normalized);
     }
+
+    private static string Normalize(string email) => email.Trim().ToLowerInvariant();
 }
