@@ -3,12 +3,15 @@ using BookingHubAPI.Application.Common;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;
+using BookingHubAPI.Domain.Scheduling;
 using FluentValidation;
 
 namespace BookingHubAPI.Application.Services;
 
 public class ReservationService : IReservationService
 {
+    public const string OutsideWorkingHoursMessage = "The selected time is outside the company's working hours";
+
     private readonly IReservationRepository _reservationRepository;
     private readonly IServiceRepository _serviceRepository;
     private readonly ICompanyRepository _companyRepository;
@@ -82,7 +85,7 @@ public class ReservationService : IReservationService
             return Error.Validation("Service not found or inactive");
         }
 
-        var company = await _companyRepository.GetByIdAsync(service.CompanyId);
+        var company = await _companyRepository.GetByIdWithWorkingHoursAsync(service.CompanyId);
         if (company == null || !company.IsActive)
         {
             return Error.Validation("Company not found or inactive");
@@ -101,6 +104,13 @@ public class ReservationService : IReservationService
         if (!validation.IsValid)
         {
             return Error.Validation(validation.Errors[0].ErrorMessage);
+        }
+
+        // The same rule the availability endpoint uses to offer slots, so a request is accepted
+        // exactly when its whole interval fits inside the day's active working hours.
+        if (!BookingSchedule.IsWithinOpeningHours(company.WorkingHours, request.StartTime, endTime))
+        {
+            return Error.Validation(OutsideWorkingHoursMessage);
         }
 
         var reservation = new Reservation
@@ -138,12 +148,12 @@ public class ReservationService : IReservationService
             return Error.NotFound("Reservation not found");
         }
 
-        if (reservation.Status != ReservationStatus.Pending)
+        if (!reservation.CanBeConfirmed)
         {
-            return Error.Validation("Only pending reservations can be confirmed");
+            return Error.Validation(Reservation.OnlyPendingCanBeConfirmedMessage);
         }
 
-        reservation.Status = ReservationStatus.Confirmed;
+        reservation.Confirm();
         var updatedReservation = await _reservationRepository.UpdateAsync(reservation);
 
         var customer = await _userRepository.GetByIdAsync(reservation.CustomerId);
@@ -180,12 +190,12 @@ public class ReservationService : IReservationService
             return Error.Forbidden("Reservation belongs to another company");
         }
 
-        if (reservation.Status == ReservationStatus.Cancelled || reservation.Status == ReservationStatus.Completed)
+        if (!reservation.CanBeCancelled)
         {
-            return Error.Validation("Reservation cannot be cancelled");
+            return Error.Validation(Reservation.CannotBeCancelledMessage);
         }
 
-        reservation.Status = ReservationStatus.Cancelled;
+        reservation.Cancel();
         var updatedReservation = await _reservationRepository.UpdateAsync(reservation);
 
         var customer = await _userRepository.GetByIdAsync(reservation.CustomerId);

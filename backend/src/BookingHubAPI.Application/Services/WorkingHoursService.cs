@@ -61,14 +61,8 @@ public class WorkingHoursService : IWorkingHoursService
         // Inactive days are stored too, so the times the owner set for a disabled day survive.
         foreach (var request in requests)
         {
-            await _workingHoursRepository.CreateAsync(new WorkingHours
-            {
-                CompanyId = companyId.Value,
-                DayOfWeek = request.DayOfWeek,
-                StartTime = request.StartTime,
-                EndTime = request.EndTime,
-                IsActive = request.IsActive
-            });
+            await _workingHoursRepository.CreateAsync(WorkingHours.Create(
+                companyId.Value, request.DayOfWeek, request.StartTime, request.EndTime, request.IsActive));
         }
 
         var saved = requests
@@ -94,10 +88,14 @@ public class WorkingHoursService : IWorkingHoursService
             return Error.Validation($"Duplicate working hours for {duplicate.Key}");
         }
 
-        var inverted = requests.FirstOrDefault(r => r.IsActive && r.StartTime >= r.EndTime);
-        if (inverted != null)
+        // The time window rules (within one day, start before end on active days) belong to the entity.
+        foreach (var request in requests)
         {
-            return Error.Validation($"Start time must be before end time for {inverted.DayOfWeek}");
+            var problem = WorkingHours.Validate(request.DayOfWeek, request.StartTime, request.EndTime, request.IsActive);
+            if (problem != null)
+            {
+                return Error.Validation(problem);
+            }
         }
 
         return null;
