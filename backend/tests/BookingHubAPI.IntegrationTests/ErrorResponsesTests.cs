@@ -148,7 +148,8 @@ public class ErrorResponsesTests : IClassFixture<BookingApiFactory>
 
         var response = await client.GetAsync("/api/favorites");
 
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        // Whichever writer handles it, the client must still get a complete problem document.
+        await response.ShouldBeProblemAsync(HttpStatusCode.Unauthorized);
     }
 
     private async Task<HttpResponseMessage> GetFavoritesWithTokenAsync(string token)
