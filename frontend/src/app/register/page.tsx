@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getApiErrorMessage } from "@/lib/apiError";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,7 +44,7 @@ export default function RegisterPage() {
     try {
       await register(email, password, role);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Registration failed. Please try again.");
+      setError(getApiErrorMessage(err, "Registration failed. Please try again."));
     } finally {
       setIsLoading(false);
     }

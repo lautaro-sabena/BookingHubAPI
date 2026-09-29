@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getApiErrorMessage } from "@/lib/apiError";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +29,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Invalid email or password");
+      setError(getApiErrorMessage(err, "Invalid email or password"));
     } finally {
       setIsLoading(false);
     }
