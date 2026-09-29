@@ -25,7 +25,8 @@ public class FavoriteService : IFavoriteService
     public async Task<Result<FavoriteDto>> AddFavoriteAsync(Guid customerId, Guid serviceId)
     {
         var service = await _serviceRepository.GetByIdWithCompanyAsync(serviceId);
-        if (service == null)
+        // Same visibility rule as the public catalog: inactive services and companies stay hidden.
+        if (service == null || !service.IsActive || !service.Company.IsActive)
         {
             return Error.NotFound("Service not found");
         }

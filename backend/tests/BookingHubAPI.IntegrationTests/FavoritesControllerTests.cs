@@ -173,6 +173,36 @@ public class FavoritesControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
+    public async Task AddFavorite_ForInactiveService_ShouldReturnNotFound()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        (await owner.Client.DeleteAsync($"/api/services/{service.Id}")).EnsureSuccessStatusCode();
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await AddAsync(customer, service.Id);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound,
+            "an inactive service must stay hidden, as GET /api/services/{id} does");
+        (await customer.Client.GetFromJsonAsync<List<FavoriteDto>>("/api/favorites")).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task AddFavorite_ForServiceOfInactiveCompany_ShouldReturnNotFound()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        await TestApi.DeactivateCompanyAsync(_factory, service.CompanyId);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await AddAsync(customer, service.Id);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound,
+            "a service of an inactive company must stay hidden, as GET /api/services/{id} does");
+        (await customer.Client.GetFromJsonAsync<List<FavoriteDto>>("/api/favorites")).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AddFavorite_Twice_ShouldReturnBadRequestWithMessageAndKeepASingleFavorite()
     {
         var owner = await TestApi.RegisterOwnerAsync(_factory);
