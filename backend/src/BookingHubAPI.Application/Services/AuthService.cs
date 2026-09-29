@@ -46,12 +46,18 @@ public class AuthService : IAuthService
         var passwordHash = _passwordHasher.Hash(request.Password);
         User createdUser = null!;
 
+        // Ids are fixed once, outside the delegate: if the connection drops after the server committed, the
+        // transaction is re-run, and new ids would then collide with the committed row on the unique e-mail index.
+        var userId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+
         // The user, its default company and the link between them are written atomically, so a failure
         // never leaves an owner without a company.
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             createdUser = await _userRepository.CreateAsync(new User
             {
+                Id = userId,
                 Email = email,
                 PasswordHash = passwordHash,
                 Role = role
@@ -61,6 +67,7 @@ public class AuthService : IAuthService
             {
                 var createdCompany = await _companyRepository.CreateAsync(new Company
                 {
+                    Id = companyId,
                     Name = $"{email}'s Company",
                     OwnerId = createdUser.Id,
                     TimeZone = "UTC"
@@ -68,7 +75,9 @@ public class AuthService : IAuthService
                 createdUser.CompanyId = createdCompany.Id;
                 await _userRepository.UpdateAsync(createdUser);
             }
-        });
+        },
+        // The user, company and link commit together, so the user's presence means the whole registration is committed.
+        async () => await _userRepository.GetByIdAsync(userId) != null);
 
         return ToTokenResponse(createdUser);
     }

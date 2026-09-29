@@ -117,6 +117,14 @@ and applied by hand, with a backup, before deploying the matching API version.
 | `ConvertReservationTimesToUtc` | One-time data fix: reservations held company-local wall-clock times labelled UTC; they become real UTC instants. Companies in `UTC` are skipped. It detects the real column type (`timestamp with time zone` or `timestamp without time zone`) and only runs the matching conversion. Runs once (tracked in the history), never twice. |
 | `NormalizeUserEmails` | Lower-cases `Users.Email`. **Fails without changing anything** if two e-mails differ only by case, and prints them. The existing unique index `IX_Users_Email` then guarantees case-insensitive uniqueness because the app always stores lower-case. |
 
+### Startup schema check
+
+On startup the API compares the database with the migrations in the build (`GetPendingMigrationsAsync`; skipped for
+non-relational providers such as the EF InMemory used by the integration tests). If any are pending it logs a critical error
+naming them, pointing here, and **refuses to start**. Setting `Database:FailOnPendingMigrations`
+(env `Database__FailOnPendingMigrations`) controls it: default `true` outside Development, `false` in Development, where it
+only logs a warning. An unreachable database also fails startup when the check is on. Migrate first, then deploy the API.
+
 ### Tooling
 
 `dotnet-ef` is pinned in `.config/dotnet-tools.json` (same version as EF Core). From `backend/`:
@@ -163,6 +171,11 @@ Use `psql -v ON_ERROR_STOP=1` for every script below.
    -- E-mails that differ only by case. Must return 0 rows; otherwise resolve them first (merge/rename accounts).
    SELECT lower("Email") AS email, count(*) AS accounts, array_agg("Id") AS ids
    FROM "Users" GROUP BY lower("Email") HAVING count(*) > 1;
+
+   -- Non-ASCII e-mails. NormalizeUserEmails uses SQL lower(), the app uses .NET ToLowerInvariant(); they can differ for
+   -- non-ASCII letters (depends on the database collation). Review each row: after migrating, the app must find the account
+   -- by lower-casing the typed e-mail, so the stored value must equal ToLowerInvariant(email). Fix mismatches by hand.
+   SELECT "Id", "Email" FROM "Users" WHERE "Email" ~ '[^\x01-\x7F]';
 
    -- Time zones stored, and how many reservations will be converted. Each must be a valid IANA id known to PostgreSQL.
    SELECT c."TimeZone", count(r."Id") AS reservations, EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = c."TimeZone") AS known_to_postgres
