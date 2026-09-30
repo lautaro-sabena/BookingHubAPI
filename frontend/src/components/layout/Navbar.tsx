@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sun, Moon } from "lucide-react";
 
 export function Navbar() {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, logoutError, isAuthenticated } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -22,8 +22,13 @@ export function Navbar() {
               <span className="text-sm text-muted-foreground">
                 {user?.email}
               </span>
-              <Button variant="outline" size="sm" onClick={logout}>
-                Logout
+              {logoutError && (
+                <span role="alert" className="text-sm text-destructive">
+                  Could not sign out. Try again.
+                </span>
+              )}
+              <Button variant="outline" size="sm" onClick={() => void logout()}>
+                {logoutError ? "Retry logout" : "Logout"}
               </Button>
             </>
           ) : (
