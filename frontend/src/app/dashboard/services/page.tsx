@@ -1,54 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
-import { Service } from "@/types";
+import { ErrorNotice } from "@/components/ui/error-notice";
+import { useDeleteService, useOwnerServices } from "@/hooks/queries/useServices";
+import { useRequireRole } from "@/hooks/useRequireRole";
 
 export default function OwnerServicesPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { allowed } = useRequireRole("Owner");
+  const { data: services = [], isLoading, error } = useOwnerServices();
+  const remove = useDeleteService();
 
-  useEffect(() => {
-    if (!authLoading && user?.role !== "Owner") {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (user?.role === "Owner") {
-      fetchServices();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchServices = async () => {
-    try {
-      const response = await api.get<{ items: Service[] }>("/services");
-      setServices(response.data.items);
-    } catch (err) {
-      console.error("Failed to fetch services:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm("Are you sure you want to delete this service?")) return;
-    
-    try {
-      await api.delete(`/services/${id}`);
-      setServices(services.filter(s => s.id !== id));
-    } catch (err) {
-      console.error("Failed to delete service:", err);
-    }
+    remove.mutate(id);
   };
 
-  if (authLoading || loading) {
+  if (!allowed || isLoading) {
     return <div>Loading...</div>;
   }
 
@@ -60,6 +29,7 @@ export default function OwnerServicesPage() {
           <Button>Add Service</Button>
         </Link>
       </div>
+      <ErrorNotice error={error ?? remove.error} />
       {services.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => (
@@ -79,8 +49,8 @@ export default function OwnerServicesPage() {
                   <Link href={`/dashboard/services/${service.id}/edit`}>
                     <Button variant="outline" size="sm">Edit</Button>
                   </Link>
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     size="sm"
                     onClick={() => handleDelete(service.id)}
                   >

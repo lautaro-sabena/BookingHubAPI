@@ -1,55 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
-import { Favorite, Service } from "@/types";
+import { ErrorNotice } from "@/components/ui/error-notice";
+import { useFavorites, useRemoveFavorite } from "@/hooks/queries/useFavorites";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import { Star, Trash2 } from "lucide-react";
 
 export default function CustomerFavoritesPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { allowed } = useRequireRole("Customer");
+  const { data: favorites = [], isLoading, error } = useFavorites();
+  const remove = useRemoveFavorite();
 
-  useEffect(() => {
-    if (!authLoading && user?.role !== "Customer") {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (user?.role === "Customer") {
-      fetchFavorites();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchFavorites = async () => {
-    try {
-      const response = await api.get<Favorite[]>("/favorites");
-      setFavorites(response.data);
-    } catch (error) {
-      console.error("Failed to fetch favorites:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRemoveFavorite = async (serviceId: string) => {
+  const handleRemoveFavorite = (serviceId: string) => {
     if (!confirm("Remove this service from favorites?")) return;
-    
-    try {
-      await api.delete(`/favorites/${serviceId}`);
-      setFavorites(favorites.filter(f => f.serviceId !== serviceId));
-    } catch (error) {
-      console.error("Failed to remove favorite:", error);
-    }
+    remove.mutate(serviceId);
   };
 
-  if (authLoading || loading) {
+  if (!allowed || isLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
 
@@ -58,7 +27,8 @@ export default function CustomerFavoritesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">My Favorites</h1>
       </div>
-      
+      <ErrorNotice error={error ?? remove.error} />
+
       {favorites.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {favorites.map((favorite) => (

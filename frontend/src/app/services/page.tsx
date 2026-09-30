@@ -1,81 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
-import { Service } from "@/types";
+import { ErrorNotice } from "@/components/ui/error-notice";
+import { useAddFavorite, useFavoriteServiceIds, useRemoveFavorite } from "@/hooks/queries/useFavorites";
+import { usePublicServices } from "@/hooks/queries/useServices";
 import { Star } from "lucide-react";
 
 export default function ServicesPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const { data: services = [], isLoading, error } = usePublicServices();
+  const favoriteIds = useFavoriteServiceIds();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
 
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
-  const fetchServices = async () => {
-    try {
-      const response = await api.get<{ items: Service[] }>("/services/all");
-      setServices(response.data.items.filter(s => s.isActive));
-    } catch (err) {
-      console.error("Failed to fetch services:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFavorites = async () => {
-    if (user?.role !== "Customer") return;
-    
-    try {
-      const response = await api.get<{ serviceId: string }[]>("/favorites");
-      const ids = new Set(response.data.map(f => f.serviceId));
-      setFavoriteIds(ids);
-    } catch (err) {
-      console.error("Failed to fetch favorites:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (user?.role === "Customer") {
-      fetchFavorites();
-    }
-  }, [user]);
-
-  const toggleFavorite = async (serviceId: string, e: React.MouseEvent) => {
+  const toggleFavorite = (serviceId: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    try {
-      if (favoriteIds.has(serviceId)) {
-        await api.delete(`/favorites/${serviceId}`);
-        setFavoriteIds(prev => {
-          const next = new Set(prev);
-          next.delete(serviceId);
-          return next;
-        });
-      } else {
-        await api.post(`/favorites/${serviceId}`);
-        setFavoriteIds(prev => new Set(prev).add(serviceId));
-      }
-    } catch (err) {
-      console.error("Failed to toggle favorite:", err);
+
+    if (favoriteIds.has(serviceId)) {
+      removeFavorite.mutate(serviceId);
+    } else {
+      addFavorite.mutate(serviceId);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Available Services</h1>
+      <ErrorNotice error={error ?? addFavorite.error ?? removeFavorite.error} />
       {services.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => (
@@ -86,8 +45,8 @@ export default function ServicesPage() {
                 className="absolute top-2 right-2"
                 onClick={(e) => toggleFavorite(service.id, e)}
               >
-                <Star 
-                  className={`h-5 w-5 ${favoriteIds.has(service.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} 
+                <Star
+                  className={`h-5 w-5 ${favoriteIds.has(service.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}
                 />
               </Button>
               <CardHeader>

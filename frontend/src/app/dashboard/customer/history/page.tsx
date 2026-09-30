@@ -1,89 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
-import { toCompanyLocalDate } from "@/lib/dateTime";
-import { Reservation } from "@/types";
+import { useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ErrorNotice } from "@/components/ui/error-notice";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { useReservations } from "@/hooks/queries/useReservations";
+import { useRequireRole } from "@/hooks/useRequireRole";
+import { formatCompanyDate, formatCompanyTime } from "@/lib/dateTime";
+import { sortByInstantDescending } from "@/lib/reservations";
+
+const SHORT_DATE: Intl.DateTimeFormatOptions = { weekday: "short", year: "numeric", month: "short", day: "numeric" };
 
 export default function CustomerHistoryPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { allowed } = useRequireRole("Customer");
+  const { data: reservations, isLoading, error } = useReservations();
+  const sortedReservations = useMemo(() => sortByInstantDescending(reservations ?? []), [reservations]);
 
-  useEffect(() => {
-    if (!authLoading && user?.role !== "Customer") {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (user?.role === "Customer") {
-      fetchReservations();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchReservations = async () => {
-    try {
-      const response = await api.get<{ items: Reservation[] }>("/reservations");
-      setReservations(response.data.items);
-    } catch (error) {
-      console.error("Failed to fetch reservations:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = toCompanyLocalDate(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = toCompanyLocalDate(dateString);
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Confirmed":
-        return "bg-green-100 text-green-800";
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "Cancelled":
-        return "bg-red-100 text-red-800";
-      case "Completed":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  if (authLoading || loading) {
+  if (!allowed || isLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
-
-  // Sort by the real instant (not the company wall clock), most recent first
-  const sortedReservations = [...reservations].sort(
-    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-  );
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Reservation History</h1>
-      
+      <ErrorNotice error={error} />
+
       {sortedReservations.length > 0 ? (
         <div className="space-y-4">
           {sortedReservations.map((reservation) => (
@@ -93,16 +34,14 @@ export default function CustomerHistoryPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-semibold">{reservation.serviceName}</h3>
-                      <span className={`px-2 py-1 text-xs rounded ${getStatusColor(reservation.status)}`}>
-                        {reservation.status}
-                      </span>
+                      <StatusBadge status={reservation.status} />
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       <p>
-                        <span className="font-medium">Date:</span> {formatDate(reservation.startTime)}
+                        <span className="font-medium">Date:</span> {formatCompanyDate(reservation.startTime, SHORT_DATE)}
                       </p>
                       <p>
-                        <span className="font-medium">Time:</span> {formatTime(reservation.startTime)} - {formatTime(reservation.endTime)}
+                        <span className="font-medium">Time:</span> {formatCompanyTime(reservation.startTime)} - {formatCompanyTime(reservation.endTime)}
                       </p>
                       <p>
                         <span className="font-medium">Duration:</span> {reservation.serviceDuration} minutes
