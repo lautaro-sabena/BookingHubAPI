@@ -17,6 +17,20 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * Where /api/* is proxied to. Server-side only (not NEXT_PUBLIC_*): the browser never learns the API origin.
+ *
+ * The browser only talks to this frontend's origin, so the API's httpOnly session cookie is first-party. Calling
+ * the API origin directly would make it a third-party cookie, which Safari and Chrome block, and
+ * bookinghubapi-frontend-*.onrender.com and the API are different sites (onrender.com is on the Public Suffix List).
+ *
+ * The rewrite destination is baked in at `next build`: BACKEND_URL must be set when the image is built (Docker
+ * build arg), not only when it runs.
+ */
+function backendUrl() {
+  return (process.env.BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -32,8 +46,15 @@ const nextConfig = {
   },
   poweredByHeader: false,
   compress: true,
+  experimental: {
+    // Rewrites are cut off after 30 s by default; a free Render API instance can need about a minute to wake up.
+    proxyTimeout: 90_000,
+  },
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
+  },
+  async rewrites() {
+    return [{ source: '/api/:path*', destination: `${backendUrl()}/api/:path*` }];
   },
 };
 

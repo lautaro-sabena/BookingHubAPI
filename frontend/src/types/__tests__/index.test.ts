@@ -77,15 +77,15 @@ describe('Types', () => {
   describe('AuthResponse', () => {
     it('should have correct shape', () => {
       const authResponse: AuthResponse = {
-        token: 'jwt-token-here',
-        userId: '123e4567-e89b-12d3-a456-426614174000',
-        email: 'user@example.com',
-        role: 'Owner',
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        email: "user@example.com",
+        role: "Owner",
+        companyId: "123e4567-e89b-12d3-a456-426614174001",
       };
-      
-      expect(authResponse.token).toBeDefined();
-      expect(authResponse.userId).toBeDefined();
-      expect(authResponse.role).toBe('Owner');
+
+      expect(authResponse).not.toHaveProperty("token");
+      expect(authResponse.id).toBeDefined();
+      expect(authResponse.role).toBe("Owner");
     });
   });
 });
