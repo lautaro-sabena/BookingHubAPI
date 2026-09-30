@@ -121,6 +121,55 @@ public class RateLimitingTests
             "an untrusted X-Forwarded-For must not give the client a fresh counter");
     }
 
+    /// <summary>
+    /// The browser talks to the Next.js frontend, which proxies /api to this API through Render's edge again, so
+    /// X-Forwarded-For arrives as "client, Next.js egress IP". With ForwardedHeaders:ForwardLimit = 2 (render.yaml)
+    /// the limiter keys on the client, not on the Next.js server every user shares.
+    /// </summary>
+    [Fact]
+    public async Task ThroughTheFrontendProxyHop_ShouldKeyTheLimiterOnTheClientIp_WhenForwardLimitIsTwo()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, forwardLimit: 2);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99")).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99")).StatusCode.Should().Be((HttpStatusCode)429,
+            "the same client behind the same frontend hop exhausts its own counter");
+        (await SendWithForwardedFor(client, "198.51.100.20, 192.0.2.99")).StatusCode.Should().NotBe((HttpStatusCode)429,
+            "another client behind the same frontend hop must not share that counter");
+    }
+
+    /// <summary>The counterpart that justifies the setting: with one trusted hop the shared frontend IP is the key.</summary>
+    [Fact]
+    public async Task ThroughTheFrontendProxyHop_ShouldPoolAllClients_WhenForwardLimitIsOne()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, forwardLimit: 1);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99")).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "198.51.100.20, 192.0.2.99")).StatusCode.Should().Be((HttpStatusCode)429,
+            "ForwardLimit 1 stops at the frontend hop, which is the same for every user");
+    }
+
+    /// <summary>A client-supplied leading entry sits left of the trusted hops and must not choose the key.</summary>
+    [Fact]
+    public async Task ThroughTheFrontendProxyHop_ShouldIgnoreEntriesTheClientPrepended()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, forwardLimit: 2);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "1.1.1.1, 203.0.113.10, 192.0.2.99")).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "2.2.2.2, 203.0.113.10, 192.0.2.99")).StatusCode.Should().Be((HttpStatusCode)429,
+            "rotating a spoofed leading entry must not give the client a fresh counter");
+    }
+
+    private static Task<HttpResponseMessage> SendWithForwardedFor(HttpClient client, string forwardedFor)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, UnmappedProbePath);
+        request.Headers.Add("X-Forwarded-For", forwardedFor);
+        return client.SendAsync(request);
+    }
+
     /// <summary>Does not relax rate limiting, so IpRateLimitOptions reflects appsettings.json as-is.</summary>
     private class ProductionRulesApiFactory : BookingApiFactory
     {
@@ -158,7 +207,7 @@ public class RateLimitingTests
     /// Allows one request per client IP and sets ForwardedHeaders:TrustAllProxies explicitly,
     /// so tests can compare the trusted (Render) and untrusted (default) proxy configurations.
     /// </summary>
-    private class SingleRequestLimitApiFactory(bool trustAllProxies) : BookingApiFactory
+    private class SingleRequestLimitApiFactory(bool trustAllProxies, int forwardLimit = 1) : BookingApiFactory
     {
         protected override bool RelaxRateLimiting => false;
 
@@ -168,7 +217,8 @@ public class RateLimitingTests
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ForwardedHeaders:TrustAllProxies"] = trustAllProxies.ToString()
+                    ["ForwardedHeaders:TrustAllProxies"] = trustAllProxies.ToString(),
+                    ["ForwardedHeaders:ForwardLimit"] = forwardLimit.ToString()
                 });
             });
 

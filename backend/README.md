@@ -37,6 +37,9 @@ backend/
 | `Jwt__Issuer` | Token issuer (default: `BookingHubAPI`) | `BookingHubAPI` |
 | `Jwt__Audience` | Token audience (default: `BookingHubAPI`) | `BookingHubAPI` |
 | `Jwt__ExpirationMinutes` | Token expiration in minutes (default: 60) | `60` |
+| `ForwardedHeaders__TrustAllProxies` | Trust the immediate peer's `X-Forwarded-*` headers (default `false`; `true` on Render) | `true` |
+| `ForwardedHeaders__ForwardLimit` | Number of trailing `X-Forwarded-For` entries that are proxies (default `1`; `2` on Render behind the frontend proxy) | `2` |
+| `Auth__Cookie__Secure` | `Secure` flag of the session cookie (default `true`; `false` only for plain-http local development) | `true` |
 | `Cors__AllowedOrigins` | Allowed origins: a comma-separated list in a single variable, or an indexed array (`Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ...) | `https://yourdomain.com,https://admin.yourdomain.com` |
 
 Both forms are resolved by
@@ -341,7 +344,12 @@ Todos los errores (400, 401, 403, 404, 409, 500) usan RFC 7807 (`application/pro
 ## Seguridad
 
 - **Rate Limiting**: 100 pedidos/minuto por IP
-- **JWT**: Tokens con expiración configurable
+- **JWT**: Tokens con expiración configurable. El navegador los recibe en una cookie de sesión (`bookinghub_session`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` salvo en Development, caduca con el token); el cuerpo de login/register solo trae el usuario `{id, email, role, companyId}`. `Authorization: Bearer <jwt>` sigue funcionando y tiene prioridad sobre la cookie (la cookie se puede copiar de la respuesta de login para usarla como bearer en Postman).
+  - `POST /api/auth/logout` borra la cookie; `GET /api/auth/me` devuelve el usuario de la sesión (401 sin sesión).
+  - **CSRF**: las peticiones POST/PUT/PATCH/DELETE autenticadas por cookie, y login/register/logout siempre, exigen `X-Requested-With: BookingHub` (403 ProblemDetails si falta). Las que llevan `Authorization: Bearer` están exentas. Un sitio ajeno no puede añadir una cabecera propia sin un preflight CORS que la whitelist rechaza, y `SameSite=Lax` es la segunda capa.
+  - Config: `Auth__Cookie__Secure` (por defecto `true`; `false` en `appsettings.Development.json` para `http://localhost`) y `Auth__Cookie__Name`.
+  - El frontend reenvía `/api/*` a la API (`rewrites` de Next), así que el navegador nunca llama al origen de la API: la cookie es de primera parte (`onrender.com` está en la Public Suffix List, una cookie puesta por la API sería de terceros y la bloquearían Safari/Chrome).
+  - **Deploy (Render)**: el frontend necesita `BACKEND_URL` (URL pública https de la API, se fija en build) y la API `ForwardedHeaders__ForwardLimit=2`: la cadena `X-Forwarded-For` es `<cliente>, <IP del frontend>`, y con 1 el rate limit usaría la IP compartida del frontend para todos. Debe coincidir con los saltos reales.
 - **CORS**: Orígenes configurables por entorno
 - **Passwords**: Hasheados con bcrypt
 - **HTTPS**: La redirección la hace el proxy de Render (la API no usa `UseHttpsRedirection`); HSTS (`Strict-Transport-Security`) se envía fuera de Development

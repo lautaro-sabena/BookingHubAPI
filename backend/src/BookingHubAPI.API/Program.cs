@@ -62,12 +62,23 @@ builder.Services.AddSingleton<SessionCookie>();
 // Behind Render's proxy every request arrives from the proxy IP, so the rate limiter would
 // share one counter across all clients. ForwardedHeaders restores the client IP from
 // X-Forwarded-For for every consumer. Render publishes no fixed proxy range, so
-// ForwardedHeaders:TrustAllProxies (set in render.yaml) trusts the single immediate hop.
+// ForwardedHeaders:TrustAllProxies (set in render.yaml) trusts the immediate peer.
 // Only enable it where the proxy is the sole ingress; otherwise clients can spoof the header.
+//
+// ForwardedHeaders:ForwardLimit is the number of X-Forwarded-For entries (counted from the right) that are
+// proxies, not the client. The browser only talks to the Next.js frontend, whose /api rewrite forwards the
+// request to this API's public URL, so the chain seen here is:
+//   client -> Render edge -> Next.js server -> Render edge -> API
+//   X-Forwarded-For: <client>, <Next.js egress IP>      (first edge added <client>, second added the Next.js IP;
+//                                                        Next.js itself only sets the header when it is absent)
+// The rightmost entry is therefore the Next.js server, shared by every user: with a limit of 1 the rate limiter
+// would key on it and throttle all users together. render.yaml sets ForwardLimit to 2, which skips the Next.js
+// hop and takes <client>. The value must equal the real number of trusted hops: too low keys on a shared proxy,
+// too high lets a client-supplied leading entry through.
 builder.Services.AddOptions<ForwardedHeadersOptions>().Configure<IConfiguration>((options, configuration) =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.ForwardLimit = 1;
+    options.ForwardLimit = configuration.GetValue("ForwardedHeaders:ForwardLimit", 1);
     if (configuration.GetValue<bool>("ForwardedHeaders:TrustAllProxies"))
     {
         options.KnownNetworks.Clear();
