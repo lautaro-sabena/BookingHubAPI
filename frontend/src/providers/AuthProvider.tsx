@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { AUTH_EXPIRED_EVENT } from "@/lib/api";
 import { fetchCurrentUser, loginRequest, logoutRequest, registerRequest } from "@/lib/auth";
 import { User, UserRole } from "@/types";
 
@@ -29,21 +30,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
   const router = useRouter();
+  // Bumped by every restore attempt and by sign-in: only the latest restore may touch the state. A slow /me answer
+  // that arrives after the user signed in (or after a newer attempt) is ignored.
+  const restoreGeneration = useRef(0);
 
-  // The session is an httpOnly cookie the page cannot read: ask the API who is signed in.
-  const restoreSession = useCallback(async (isCancelled: () => boolean = () => false) => {
+  // The session is an httpOnly cookie the page cannot read: ask the API who is signed in. State is only set once
+  // the answer arrives, and only if nothing newer (a sign-in, a retry) happened meanwhile.
+  const restoreSession = useCallback((isCancelled: () => boolean = () => false) => {
+    const generation = ++restoreGeneration.current;
+    const isCurrent = () => !isCancelled() && generation === restoreGeneration.current;
+    return fetchCurrentUser() // null = 401 = really signed out
+      .then((current) => {
+        if (isCurrent()) setUser(current);
+      })
+      .catch(() => {
+        // An outage is not a sign-out: keep everything as is and let the user retry.
+        if (isCurrent()) setSessionUnavailable(true);
+      })
+      .finally(() => {
+        if (isCurrent()) setIsLoading(false);
+      });
+  }, []);
+
+  const retrySession = () => {
     setIsLoading(true);
     setSessionUnavailable(false);
-    try {
-      const current = await fetchCurrentUser(); // null = 401 = really signed out
-      if (!isCancelled()) setUser(current);
-    } catch {
-      // An outage is not a sign-out: keep everything as is and let the user retry.
-      if (!isCancelled()) setSessionUnavailable(true);
-    } finally {
-      if (!isCancelled()) setIsLoading(false);
-    }
-  }, []);
+    void restoreSession();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -53,10 +66,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [restoreSession]);
 
-  // A successful sign-in proves the API is reachable and settles the session question.
+  // The API answered 401 to a protected call: the session is over. The interceptor only announces it.
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      router.push("/login");
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, [router]);
+
+  // A successful sign-in proves the API is reachable and settles the session question, so any restore still in
+  // flight (or a pending Retry) is obsolete and must not overwrite it.
   const signedIn = (current: User) => {
+    restoreGeneration.current++;
     setUser(current);
     setSessionUnavailable(false);
+    setIsLoading(false);
     router.push("/dashboard");
   };
 
@@ -102,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           <button
             type="button"
             className="rounded-md border px-3 py-1"
-            onClick={() => void restoreSession()}
+            onClick={retrySession}
           >
             Retry
           </button>

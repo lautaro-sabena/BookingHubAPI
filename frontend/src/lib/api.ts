@@ -34,6 +34,12 @@ export function shouldRedirectToLogin(requestUrl: string | undefined, pathname: 
   return !AUTH_PAGES.includes(pathname);
 }
 
+/**
+ * Fired on `window` when a protected call answers 401 outside the sign-in pages. AuthProvider listens for it, drops
+ * the signed-in user and navigates with the Next router, so this module never assigns `window.location`.
+ */
+export const AUTH_EXPIRED_EVENT = "bookinghub:auth-expired";
+
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
@@ -42,7 +48,7 @@ api.interceptors.response.use(
       typeof window !== "undefined" &&
       shouldRedirectToLogin(error.config?.url, window.location.pathname)
     ) {
-      window.location.href = "/login";
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
     }
     return Promise.reject(error);
   }
