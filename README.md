@@ -18,7 +18,7 @@ Plataforma de reservas de servicios entre empresas y clientes.
 │   │   └── BookingHubAPI.IntegrationTests
 │   └── Dockerfile
 │
-├── frontend/                # Aplicación Next.js 14
+├── frontend/                # Aplicación Next.js 16
 │   ├── src/
 │   │   ├── app/            # Páginas y rutas
 │   │   ├── components/     # Componentes UI
@@ -27,15 +27,15 @@ Plataforma de reservas de servicios entre empresas y clientes.
 │   │   └── stores/         # Estado global (Zustand)
 │   └── Dockerfile
 │
-├── docker-compose.yml       # Orquestación de servicios
-└── openspec/                # Documentación de especificaciones
+├── docs/                    # Colección de Postman
+└── docker-compose.yml       # Orquestación de servicios
 ```
 
 ## Requisitos Previos
 
 - Docker y Docker Compose
 - .NET 9 SDK (para desarrollo local)
-- Node.js 18+ y npm (para desarrollo local)
+- Node.js 22+ y npm (para desarrollo local)
 
 ## Configuración
 
@@ -54,10 +54,20 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 Para desarrollo local sin Docker (`dotnet run`), ver la sección de user-secrets en
 `backend/README.md` en su lugar - `.env`/`.env.example` solo aplican al flujo de docker-compose.
 
+## Base de datos
+
+La API no crea ni modifica el esquema al arrancar: se gestiona con migraciones de EF Core.
+Antes del primer arranque (y en cada deploy con migraciones nuevas) hay que aplicarlas.
+Los pasos para desarrollo local y el runbook de producción están en
+[`backend/README.md` → Database migrations runbook](backend/README.md#database-migrations-runbook).
+
 ## Ejecución con Docker
 
 ```bash
-# Iniciar todos los servicios
+# 1. Levantar PostgreSQL y aplicar las migraciones (ver backend/README.md)
+docker-compose up -d postgres
+
+# 2. Iniciar el resto de los servicios
 docker-compose up -d
 
 # Ver logs
@@ -102,8 +112,8 @@ npm run dev
 - AspNetCoreRateLimit
 
 ### Frontend
-- Next.js 14
-- React 18
+- Next.js 16
+- React 19
 - TypeScript
 - Tailwind CSS
 - Zustand (gestión de estado)
@@ -129,7 +139,11 @@ dotnet test          # Todos los tests
 - Contraseñas hasheadas con bcrypt
 - Rate limiting integrado
 - CORS configurado por entorno
-- Headers de seguridad en producción
+- Errores con formato RFC 7807 (ProblemDetails), sin detalles internos
+
+## API
+
+La colección de Postman está en [`docs/BookingHubAPI.postman_collection.json`](docs/BookingHubAPI.postman_collection.json).
 
 ## Licencia
 
