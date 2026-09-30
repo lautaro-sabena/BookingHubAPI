@@ -22,6 +22,8 @@ interface ReservationDetailsProps {
   reservation: Reservation;
   onClose: () => void;
   onCancel: (reservation: Reservation) => void;
+  /** A confirm or cancel request is in flight: the actions wait so it cannot be sent twice. */
+  busy?: boolean;
 }
 
 function canCancel(reservation: Reservation) {
@@ -32,7 +34,7 @@ interface OwnerReservationDetailsProps extends ReservationDetailsProps {
   onConfirm: (reservation: Reservation) => void;
 }
 
-export function OwnerReservationDetails({ reservation, onClose, onCancel, onConfirm }: OwnerReservationDetailsProps) {
+export function OwnerReservationDetails({ reservation, onClose, onCancel, onConfirm, busy }: OwnerReservationDetailsProps) {
   return (
     <Card>
       <CardHeader>
@@ -50,12 +52,12 @@ export function OwnerReservationDetails({ reservation, onClose, onCancel, onConf
         {reservation.notes && <Field label="Notes">{reservation.notes}</Field>}
         <div className="flex gap-2">
           {reservation.status === "Pending" && (
-            <Button size="sm" onClick={() => onConfirm(reservation)}>
+            <Button size="sm" onClick={() => onConfirm(reservation)} disabled={busy}>
               Confirm
             </Button>
           )}
           {canCancel(reservation) && (
-            <Button variant="destructive" size="sm" onClick={() => onCancel(reservation)}>
+            <Button variant="destructive" size="sm" onClick={() => onCancel(reservation)} disabled={busy}>
               Cancel
             </Button>
           )}
@@ -68,7 +70,7 @@ export function OwnerReservationDetails({ reservation, onClose, onCancel, onConf
   );
 }
 
-export function CustomerReservationDetails({ reservation, onClose, onCancel }: ReservationDetailsProps) {
+export function CustomerReservationDetails({ reservation, onClose, onCancel, busy }: ReservationDetailsProps) {
   return (
     <Card>
       <CardHeader>
@@ -87,7 +89,7 @@ export function CustomerReservationDetails({ reservation, onClose, onCancel }: R
           )}
         </div>
         {canCancel(reservation) && (
-          <Button variant="destructive" size="sm" onClick={() => onCancel(reservation)}>
+          <Button variant="destructive" size="sm" onClick={() => onCancel(reservation)} disabled={busy}>
             Cancel Reservation
           </Button>
         )}

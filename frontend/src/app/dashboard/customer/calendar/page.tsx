@@ -36,6 +36,7 @@ export default function CustomerCalendarPage() {
         <CustomerReservationDetails
           reservation={selected}
           onClose={() => setSelected(null)}
+          busy={cancel.isPending}
           onCancel={handleCancel}
         />
       )}

@@ -53,6 +53,7 @@ export default function OwnerServicesPage() {
                     variant="destructive"
                     size="sm"
                     onClick={() => handleDelete(service.id)}
+                    disabled={remove.isPending}
                   >
                     Delete
                   </Button>

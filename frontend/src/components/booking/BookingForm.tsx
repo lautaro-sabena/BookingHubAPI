@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,8 @@ export function BookingForm({ service }: { service: Service }) {
   const [notes, setNotes] = useState("");
   const slots = useAvailableSlots(service.id, date);
   const create = useCreateReservation();
+  // Set synchronously on submit: the mutation reports "pending" a tick later, so a fast double click would slip through.
+  const submitted = useRef(false);
 
   const today = toDateInputValue(new Date());
 
@@ -40,9 +42,14 @@ export function BookingForm({ service }: { service: Service }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStart) return;
+    if (!selectedStart || submitted.current) return;
+    submitted.current = true;
     // The slot's ISO string goes back exactly as the API produced it (offset included), never rebuilt from a Date.
-    create.mutate({ serviceId: service.id, startTime: selectedStart, notes: notes || null });
+    create.mutate(
+      { serviceId: service.id, startTime: selectedStart, notes: notes || null },
+      // A failed booking may be retried; a successful one stays locked until the redirect.
+      { onError: () => (submitted.current = false) },
+    );
   };
 
   return (
@@ -98,7 +105,7 @@ export function BookingForm({ service }: { service: Service }) {
             )}
 
             <div className="flex gap-4">
-              <Button type="submit" disabled={create.isPending || !selectedStart}>
+              <Button type="submit" disabled={create.isPending || create.isSuccess || !selectedStart}>
                 {create.isPending ? "Booking..." : "Confirm Booking"}
               </Button>
               <Button type="button" variant="outline" onClick={() => router.back()}>
