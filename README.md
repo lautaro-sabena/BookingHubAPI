@@ -64,8 +64,13 @@ Los pasos para desarrollo local y el runbook de producción están en
 ## Ejecución con Docker
 
 ```bash
-# 1. Levantar PostgreSQL y aplicar las migraciones (ver backend/README.md)
+# 1. Levantar PostgreSQL y aplicar las migraciones
 docker-compose up -d postgres
+cd backend
+dotnet tool restore
+dotnet ef database update --project src/BookingHubAPI.Infrastructure \
+  --connection "Host=localhost;Port=5432;Database=bookinghubdb;Username=postgres;Password=<DB_PASSWORD de tu .env>"
+cd ..
 
 # 2. Iniciar el resto de los servicios
 docker-compose up -d
