@@ -56,11 +56,14 @@ public class SecurityHeadersTests : IClassFixture<BookingApiFactory>
 
         var response = await _factory.CreateClient().SendAsync(request);
 
+        // Prove the CORS middleware actually answered the preflight before checking the headers.
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        Header(response, "Access-Control-Allow-Origin").Should().Be("http://localhost:3000");
         AssertSecurityHeaders(response);
     }
 
     [Fact]
-    public async Task Response_ShouldNotAdvertiseTheServer()
+    public async Task App_ShouldNotAddAServerHeader()
     {
         var response = await _factory.CreateClient().GetAsync("/health");
 
@@ -116,8 +119,8 @@ public class SecurityHeadersTests : IClassFixture<BookingApiFactory>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Production");
             base.ConfigureWebHost(builder);
+            builder.UseEnvironment("Production");
         }
     }
 }
