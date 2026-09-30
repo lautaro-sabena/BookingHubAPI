@@ -38,7 +38,9 @@ backend/
 | `Jwt__Audience` | Token audience (default: `BookingHubAPI`) | `BookingHubAPI` |
 | `Jwt__ExpirationMinutes` | Token expiration in minutes (default: 60) | `60` |
 | `ForwardedHeaders__TrustAllProxies` | Trust the immediate peer's `X-Forwarded-*` headers (default `false`; `true` on Render) | `true` |
-| `ForwardedHeaders__ForwardLimit` | Number of trailing `X-Forwarded-For` entries that are proxies (default `1`; `2` on Render behind the frontend proxy) | `2` |
+| `ForwardedHeaders__ForwardLimit` | Number of trailing `X-Forwarded-For` entries that are infrastructure proxies for requests that call the API directly (default `1`: the Render edge) | `1` |
+| `ForwardedHeaders__FrontendHops` | Extra trusted hops added to `ForwardLimit` for requests that prove they came through the frontend proxy (default `1`: the Next.js server) | `1` |
+| `FRONTEND_PROXY_KEY` | Secret shared with the frontend (its `X-Frontend-Proxy-Key` header, compared in constant time and stripped). Without it the extra frontend hop is never trusted and all users behind the frontend share one rate-limit counter. Use a long random value; set the same value on the frontend | `openssl rand -base64 32` |
 | `Auth__Cookie__Secure` | `Secure` flag of the session cookie (default `true`; `false` only for plain-http local development) | `true` |
 | `Cors__AllowedOrigins` | Allowed origins: a comma-separated list in a single variable, or an indexed array (`Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ...) | `https://yourdomain.com,https://admin.yourdomain.com` |
 
@@ -349,7 +351,7 @@ Todos los errores (400, 401, 403, 404, 409, 500) usan RFC 7807 (`application/pro
   - **CSRF**: las peticiones POST/PUT/PATCH/DELETE autenticadas por cookie, y login/register/logout siempre, exigen `X-Requested-With: BookingHub` (403 ProblemDetails si falta). Las que llevan `Authorization: Bearer` están exentas. Un sitio ajeno no puede añadir una cabecera propia sin un preflight CORS que la whitelist rechaza, y `SameSite=Lax` es la segunda capa.
   - Config: `Auth__Cookie__Secure` (por defecto `true`; `false` en `appsettings.Development.json` para `http://localhost`) y `Auth__Cookie__Name`.
   - El frontend reenvía `/api/*` a la API (`rewrites` de Next), así que el navegador nunca llama al origen de la API: la cookie es de primera parte (`onrender.com` está en la Public Suffix List, una cookie puesta por la API sería de terceros y la bloquearían Safari/Chrome).
-  - **Deploy (Render)**: el frontend necesita `BACKEND_URL` (URL pública https de la API, se fija en build) y la API `ForwardedHeaders__ForwardLimit=2`: la cadena `X-Forwarded-For` es `<cliente>, <IP del frontend>`, y con 1 el rate limit usaría la IP compartida del frontend para todos. Debe coincidir con los saltos reales.
+  - **Deploy (Render)**: el frontend necesita `BACKEND_URL` (URL pública https de la API, se fija en build) y ambos servicios el mismo `FRONTEND_PROXY_KEY` (secreto, `sync: false`). La cadena `X-Forwarded-For` es `<cliente>, <IP del frontend>` solo para requests que pasan por el proxy del frontend; este añade `X-Frontend-Proxy-Key` (`frontend/src/proxy.ts`) y la API, solo si coincide (comparación en tiempo constante), confía un salto más (`ForwardLimit + FrontendHops`). Las llamadas directas a la API confían solo en la última entrada, la que añade el edge de Render, así que un `X-Forwarded-For` falsificado no evade el rate limit. Next no añade su propia entrada a `X-Forwarded-For`: solo la fija si falta. Ya no se necesita `ForwardedHeaders__ForwardLimit=2`.
 - **CORS**: Orígenes configurables por entorno
 - **Passwords**: Hasheados con bcrypt
 - **HTTPS**: La redirección la hace el proxy de Render (la API no usa `UseHttpsRedirection`); HSTS (`Strict-Transport-Security`) se envía fuera de Development
