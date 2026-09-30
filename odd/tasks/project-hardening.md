@@ -54,7 +54,11 @@ controllers, an empty Application layer, and thin tests around the risky paths.
   - #22 `refactor/hardening-22-paging-order` (base #21): ed07a0d..62f60e8 — T8 ordering. ~97.
   - #23 `refactor/hardening-23-company-time-zones` (base #22): 1291683 — T8b backend. ~947 (size:exception; DEPLOY BLOCKER data conversion).
   - #24 `refactor/hardening-24-frontend-time-zones` (base #23): 0970cd5..6ec7731 — T8b frontend + follow-ups. ~140.
-  - Next slices continue from `refactor/project-hardening` on top of #24; retarget each PR to main after its parent merges.
+  - #25 `refactor/hardening-25-unit-of-work` (base #24): 778f3d6..93b904a — T9 unit of work. ~290.
+  - #26 `refactor/hardening-26-ef-migrations` (base #25): a73d5a0 — T9 baseline + runbook. ~290 + generated.
+  - #27 `refactor/hardening-27-data-migrations` (base #26): 167edff..04e37eb — T9 data migrations. ~127 + generated.
+  - #28 `refactor/hardening-28-retry-schema-check` (base #27): 4edb560..21fd1c7 — T9b. ~263.
+  - Next slices continue from `refactor/project-hardening` on top of #28; retarget each PR to main after its parent merges.
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks
