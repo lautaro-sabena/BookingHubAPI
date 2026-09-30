@@ -144,6 +144,8 @@ dotnet test          # Todos los tests
 - Contraseñas hasheadas con bcrypt
 - Rate limiting integrado
 - CORS configurado por entorno
+- Cabeceras de seguridad en la API: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` y HSTS fuera de Development (sin cabecera `Server`)
+- Cabeceras de seguridad en el frontend (`next.config.js`): `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` y una CSP mínima (`frame-ancestors`, `object-src`, `base-uri`, `form-action`); sin `X-Powered-By`
 - Errores con formato RFC 7807 (ProblemDetails), sin detalles internos
 
 ## API

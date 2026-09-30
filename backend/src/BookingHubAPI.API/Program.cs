@@ -1,4 +1,5 @@
 using BookingHubAPI.API.Configuration;
+using BookingHubAPI.API.Middleware;
 using BookingHubAPI.Application;
 using BookingHubAPI.Application.Abstractions;
 using BookingHubAPI.Infrastructure.Configuration;
@@ -23,6 +24,9 @@ using AspNetCoreRateLimit;
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Do not advertise the server software.
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
 var jwtKey = StartupConfigurationValidator.RequireJwtSecretKey(builder.Configuration);
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
@@ -124,6 +128,14 @@ using (var scope = app.Services.CreateScope())
 
 // Must run before anything that reads RemoteIpAddress (rate limiting, CORS, auth/audit code).
 app.UseForwardedHeaders();
+
+app.UseSecurityHeaders();
+
+// Render terminates TLS; the forwarded proto above makes the request look like HTTPS so the header is emitted.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
