@@ -77,26 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/login");
   };
 
-  if (sessionUnavailable) {
-    return (
-      <div role="alert" className="flex h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-        <p>Can&apos;t reach the server right now. Your session is not affected.</p>
-        <button
-          type="button"
-          className="rounded-md border px-4 py-2 text-sm"
-          onClick={() => void restoreSession()}
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   return (
     <AuthContext.Provider
       value={{
         user,
-        isLoading,
+        // While the session is unknown, report "loading" so protected pages wait instead of redirecting to /login.
+        isLoading: isLoading || sessionUnavailable,
         login,
         register,
         logout,
@@ -104,6 +90,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
       }}
     >
+      {sessionUnavailable && (
+        // A banner, not a gate: public pages keep working during an outage or a cold start.
+        <div role="alert" className="flex items-center justify-center gap-4 border-b p-3 text-center text-sm">
+          <p>Can&apos;t reach the server right now. Your session is not affected.</p>
+          <button
+            type="button"
+            className="rounded-md border px-3 py-1"
+            onClick={() => void restoreSession()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {children}
     </AuthContext.Provider>
   );

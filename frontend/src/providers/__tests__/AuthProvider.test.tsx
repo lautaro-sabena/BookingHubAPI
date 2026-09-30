@@ -63,13 +63,14 @@ describe('AuthProvider', () => {
       expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('shows a retry state on an outage instead of signing out, and recovers on retry', async () => {
+    it('keeps the app rendered with a retry banner on an outage, reporting auth as still loading', async () => {
       fetchCurrentUser.mockRejectedValueOnce(new Error('502')).mockResolvedValueOnce(user);
       renderProvider();
 
       const retry = await screen.findByRole('button', { name: 'Retry' });
       expect(screen.getByRole('alert').textContent).toContain("Can't reach the server");
-      expect(screen.queryByTestId('state')).toBeNull();
+      // Public pages keep working; protected pages see "loading" and do not redirect to /login.
+      expect(screen.getByTestId('state').textContent).toBe('loading');
       expect(push).not.toHaveBeenCalled();
 
       retry.click();
