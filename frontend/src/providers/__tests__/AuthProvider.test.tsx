@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useContext } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const { push, fetchCurrentUser, logoutRequest, loginRequest, registerRequest } = vi.hoisted(() => ({
   push: vi.fn(),
@@ -38,17 +39,22 @@ function Probe() {
   );
 }
 
+let queryClient: QueryClient;
+
 function renderProvider() {
   return render(
-    <AuthProvider>
-      <Probe />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
 describe('AuthProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = new QueryClient();
   });
   afterEach(cleanup);
 
@@ -185,6 +191,89 @@ describe('AuthProvider', () => {
     expect(push).toHaveBeenCalledWith('/login');
   });
 
+  describe('an expired session', () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>((res) => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    }
+
+    const expire = () =>
+      act(() => {
+        window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+      });
+
+    it('navigates once when several calls expire together', async () => {
+      fetchCurrentUser.mockResolvedValue(user);
+      renderProvider();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+
+      expire();
+      expire();
+      expire();
+
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+      expect(push).toHaveBeenCalledTimes(1);
+      expect(push).toHaveBeenCalledWith('/login');
+    });
+
+    it('handles a later expiry again after the user signed back in', async () => {
+      fetchCurrentUser.mockResolvedValue(user);
+      loginRequest.mockResolvedValue(user);
+      renderProvider();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+      expire();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+
+      screen.getByText('login').click();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+      push.mockClear();
+      expire();
+
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+      expect(push).toHaveBeenCalledWith('/login');
+    });
+
+    it('clears the query cache', async () => {
+      fetchCurrentUser.mockResolvedValue(user);
+      renderProvider();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+      queryClient.setQueryData(['reservations', 'u1'], [{ id: 'r1' }]);
+
+      expire();
+
+      expect(queryClient.getQueryData(['reservations', 'u1'])).toBeUndefined();
+    });
+
+    it('discards a restore still in flight and clears the loading and outage state', async () => {
+      const restore = deferred<typeof user | null>();
+      fetchCurrentUser.mockReturnValue(restore.promise);
+      renderProvider();
+      expect(screen.getByTestId('state').textContent).toBe('loading');
+
+      expire();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+
+      // The late answer would sign the expired user back in.
+      restore.resolve(user);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(screen.getByTestId('state').textContent).toBe('out');
+    });
+
+    it('clears the outage banner state, so auth stops reporting loading', async () => {
+      fetchCurrentUser.mockRejectedValue(new Error('502'));
+      renderProvider();
+      await screen.findByRole('button', { name: 'Retry' });
+
+      expire();
+
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
   describe('logout', () => {
     async function signedIn() {
       fetchCurrentUser.mockResolvedValue(user);
@@ -201,6 +290,20 @@ describe('AuthProvider', () => {
       await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
       expect(push).toHaveBeenCalledWith('/login');
       expect(screen.getByTestId('logout-error').textContent).toBe('false');
+    });
+
+    it('clears the query cache after a confirmed logout, but not after a failed one', async () => {
+      logoutRequest.mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(undefined);
+      await signedIn();
+      queryClient.setQueryData(['reservations', 'u1'], [{ id: 'r1' }]);
+
+      screen.getByText('logout').click();
+      await waitFor(() => expect(screen.getByTestId('logout-error').textContent).toBe('true'));
+      expect(queryClient.getQueryData(['reservations', 'u1'])).toBeDefined();
+
+      screen.getByText('logout').click();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+      expect(queryClient.getQueryData(['reservations', 'u1'])).toBeUndefined();
     });
 
     it('stays signed in, reports the error and does not reject when the server call fails', async () => {

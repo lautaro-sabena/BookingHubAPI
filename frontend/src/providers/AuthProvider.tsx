@@ -2,6 +2,7 @@
 
 import { createContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { AUTH_EXPIRED_EVENT } from "@/lib/api";
 import { fetchCurrentUser, loginRequest, logoutRequest, registerRequest } from "@/lib/auth";
 import { User, UserRole } from "@/types";
@@ -30,9 +31,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionUnavailable, setSessionUnavailable] = useState(false);
   const [logoutError, setLogoutError] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
   // Bumped by every restore attempt and by sign-in: only the latest restore may touch the state. A slow /me answer
   // that arrives after the user signed in (or after a newer attempt) is ignored.
   const restoreGeneration = useRef(0);
+  // Several protected calls can fail with 401 together: only the first one ends the session and navigates.
+  const expiryHandled = useRef(false);
 
   // The session is an httpOnly cookie the page cannot read: ask the API who is signed in. State is only set once
   // the answer arrives, and only if nothing newer (a sign-in, a retry) happened meanwhile.
@@ -41,7 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const isCurrent = () => !isCancelled() && generation === restoreGeneration.current;
     return fetchCurrentUser() // null = 401 = really signed out
       .then((current) => {
-        if (isCurrent()) setUser(current);
+        if (!isCurrent()) return;
+        if (current) expiryHandled.current = false;
+        setUser(current);
       })
       .catch(() => {
         // An outage is not a sign-out: keep everything as is and let the user retry.
@@ -69,17 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // The API answered 401 to a protected call: the session is over. The interceptor only announces it.
   useEffect(() => {
     const onExpired = () => {
+      if (expiryHandled.current) return;
+      expiryHandled.current = true;
+      // Any restore still in flight is obsolete, and an outage banner has nothing left to retry.
+      restoreGeneration.current++;
       setUser(null);
+      setIsLoading(false);
+      setSessionUnavailable(false);
+      // Nothing of the previous user may stay in memory for the next sign-in on this tab.
+      queryClient.clear();
       router.push("/login");
     };
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
-  }, [router]);
+  }, [router, queryClient]);
 
   // A successful sign-in proves the API is reachable and settles the session question, so any restore still in
   // flight (or a pending Retry) is obsolete and must not overwrite it.
   const signedIn = (current: User) => {
     restoreGeneration.current++;
+    expiryHandled.current = false;
     setUser(current);
     setSessionUnavailable(false);
     setIsLoading(false);
@@ -105,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setUser(null);
+    queryClient.clear();
     router.push("/login");
   };
 
