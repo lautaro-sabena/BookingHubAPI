@@ -53,14 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [restoreSession]);
 
-  const login = async (email: string, password: string) => {
-    setUser(await loginRequest({ email, password }));
+  // A successful sign-in proves the API is reachable and settles the session question.
+  const signedIn = (current: User) => {
+    setUser(current);
+    setSessionUnavailable(false);
     router.push("/dashboard");
   };
 
+  const login = async (email: string, password: string) => {
+    signedIn(await loginRequest({ email, password }));
+  };
+
   const register = async (email: string, password: string, role: string) => {
-    setUser(await registerRequest({ email, password, role: role as UserRole }));
-    router.push("/dashboard");
+    signedIn(await registerRequest({ email, password, role: role as UserRole }));
   };
 
   const logout = async () => {
