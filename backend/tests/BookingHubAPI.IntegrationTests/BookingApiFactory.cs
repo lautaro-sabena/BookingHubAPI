@@ -1,4 +1,5 @@
 using AspNetCoreRateLimit;
+using BookingHubAPI.API.Authentication;
 using BookingHubAPI.Infrastructure.Data;
 using BookingHubAPI.IntegrationTests.Support;
 using Microsoft.AspNetCore.Hosting;
@@ -49,6 +50,16 @@ public class BookingApiFactory : WebApplicationFactory<Program>
 
     /// <summary>The clock the API sees; real time unless a test pins it.</summary>
     public SettableTimeProvider Clock { get; } = new();
+
+    /// <summary>
+    /// Every client sends the CSRF header a browser frontend sends, so tests that register/log in directly are
+    /// not rejected as cross-site posts. CSRF tests remove it explicitly.
+    /// </summary>
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+        client.DefaultRequestHeaders.Add(CsrfProtection.HeaderName, CsrfProtection.HeaderValue);
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {

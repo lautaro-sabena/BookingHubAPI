@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "BookingHubAPI",
-    "description": "Multi-tenant SaaS booking system API",
+    "description": "Multi-tenant SaaS booking system API. Browsers use an httpOnly session cookie; here the JWT from the Set-Cookie of Register/Login is copied into {{token}} and sent as a Bearer token.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -41,13 +41,29 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Requested-With",
+                "value": "BookingHub"
               }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"Test1234!\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"role\": \"Customer\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cookie = pm.response.cookies.get('bookinghub_session');",
+                  "if (cookie) { pm.collectionVariables.set('token', cookie); }"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
@@ -58,13 +74,29 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "X-Requested-With",
+                "value": "BookingHub"
               }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"Test1234!\"\n}"
             }
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const cookie = pm.response.cookies.get('bookinghub_session');",
+                  "if (cookie) { pm.collectionVariables.set('token', cookie); }"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
