@@ -196,6 +196,17 @@ public class SessionCookieAuthTests : IClassFixture<BookingApiFactory>, IClassFi
     }
 
     [Fact]
+    public async Task Logout_WithAnInvalidOrExpiredToken_ShouldStillClearTheCookie()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout").WithSessionCookie("not-a-jwt");
+
+        var response = await _secureFactory.CreateClient().SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.SessionCookie().Should().NotBeNull().And.Match<SetCookie>(c => c.IsExpired);
+    }
+
+    [Fact]
     public async Task Logout_WithoutASession_ShouldStillSucceed()
     {
         var response = await _factory.CreateClient().PostAsync("/api/auth/logout", content: null);

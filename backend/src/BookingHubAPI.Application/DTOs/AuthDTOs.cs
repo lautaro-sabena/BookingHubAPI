@@ -12,6 +12,6 @@ public record LoginRequest(
     [Required][MaxLength(100)] string Password);
 
 /// <summary>Result of a successful register/login. The token goes into the session cookie; it is never part of a response body.</summary>
-public record TokenResponse(string Token, Guid UserId, string Email, string Role, Guid? CompanyId = null);
+public record AuthSession(string Token, Guid UserId, string Email, string Role, Guid? CompanyId = null);
 
 public record UserDto(Guid Id, string Email, string Role, Guid? CompanyId);

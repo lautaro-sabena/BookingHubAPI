@@ -28,7 +28,7 @@ public class AuthService : IAuthService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result<TokenResponse>> RegisterAsync(RegisterRequest request)
+    public async Task<Result<AuthSession>> RegisterAsync(RegisterRequest request)
     {
         if (!TryParseRole(request.Role, out var role))
         {
@@ -79,10 +79,10 @@ public class AuthService : IAuthService
         // The user, company and link commit together, so the user's presence means the whole registration is committed.
         async () => await _userRepository.GetByIdAsync(userId) != null);
 
-        return ToTokenResponse(createdUser);
+        return ToAuthSession(createdUser);
     }
 
-    public async Task<Result<TokenResponse>> LoginAsync(LoginRequest request)
+    public async Task<Result<AuthSession>> LoginAsync(LoginRequest request)
     {
         var user = await _userRepository.GetByEmailAsync(NormalizeEmail(request.Email));
 
@@ -96,7 +96,7 @@ public class AuthService : IAuthService
             return Error.Unauthorized("Invalid email or password");
         }
 
-        return ToTokenResponse(user);
+        return ToAuthSession(user);
     }
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
@@ -114,10 +114,10 @@ public class AuthService : IAuthService
 
     private string DummyPasswordHash() => _dummyPasswordHash ??= _passwordHasher.Hash("dummy-password-for-timing");
 
-    private TokenResponse ToTokenResponse(User user)
+    private AuthSession ToAuthSession(User user)
     {
         var role = user.Role.ToString();
         var token = _jwtService.GenerateToken(user.Id, user.Email, role, user.CompanyId);
-        return new TokenResponse(token, user.Id, user.Email, role, user.CompanyId);
+        return new AuthSession(token, user.Id, user.Email, role, user.CompanyId);
     }
 }
