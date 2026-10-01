@@ -1,17 +1,16 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import api, { setAuthToken } from "@/lib/api";
-import { initializeAuth, removeStoredToken, setStoredToken } from "@/lib/auth";
-import { User, AuthResponse, LoginRequest, RegisterRequest } from "@/types";
+import { fetchCurrentUser, loginRequest, logoutRequest, registerRequest } from "@/lib/auth";
+import { User, UserRole } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, role: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -25,55 +24,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // The session is an httpOnly cookie the page cannot read: ask the API who is signed in.
   useEffect(() => {
-    const token = initializeAuth();
-    if (token) {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    }
-    setIsLoading(false);
+    let cancelled = false;
+    fetchCurrentUser()
+      .then((current) => {
+        if (!cancelled) setUser(current);
+      })
+      .catch(() => {
+        // API unreachable: treat as signed out; the next request will surface the real error.
+        if (!cancelled) setUser(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
-    const response = await api.post<AuthResponse>("/auth/login", {
-      email,
-      password,
-    } as LoginRequest);
-
-    const { token, userId, email: userEmail, role } = response.data;
-    
-    setStoredToken(token);
-    const userData: User = { id: userId, email: userEmail, role };
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    router.push(role === "Owner" ? "/dashboard" : "/dashboard");
+    setUser(await loginRequest({ email, password }));
+    router.push("/dashboard");
   };
 
   const register = async (email: string, password: string, role: string) => {
-    const response = await api.post<AuthResponse>("/auth/register", {
-      email,
-      password,
-      role,
-    } as RegisterRequest);
-
-    const { token, userId, email: userEmail, role: userRole } = response.data;
-    
-    setStoredToken(token);
-    const userData: User = { id: userId, email: userEmail, role: userRole as "Owner" | "Customer" };
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
-
-    router.push(userData.role === "Owner" ? "/dashboard" : "/dashboard");
+    setUser(await registerRequest({ email, password, role: role as UserRole }));
+    router.push("/dashboard");
   };
 
-  const logout = () => {
-    removeStoredToken();
-    setUser(null);
-    localStorage.removeItem("user");
-    router.push("/login");
+  const logout = async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      // Signed out locally even when the call fails; the cookie then simply expires with the token.
+      setUser(null);
+      router.push("/login");
+    }
   };
 
   return (

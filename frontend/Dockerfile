@@ -11,6 +11,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Target of the /api/* proxy (next.config.js rewrites). Baked into the build, so it is a build arg.
+ARG BACKEND_URL=http://localhost:5000
+ENV BACKEND_URL=${BACKEND_URL}
+
 RUN npm run build
 
 FROM base AS runner

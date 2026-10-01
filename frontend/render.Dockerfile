@@ -1,13 +1,14 @@
 FROM node:22-alpine
 
-ARG NEXT_PUBLIC_API_URL=https://bookinghubapi.onrender.com
+# Target of the /api/* proxy (next.config.js rewrites). Baked into the build, so it is a build arg.
+ARG BACKEND_URL=https://bookinghubapi.onrender.com
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV BACKEND_URL=${BACKEND_URL}
 
 COPY tsconfig.json next.config.js tailwind.config.ts postcss.config.js ./
 COPY src ./src

@@ -24,11 +24,17 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
 ## Variables de Entorno
 
-Crear un archivo `.env.local`:
+Crear un archivo `.env.local` (opcional):
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
+# Destino del proxy /api/* (server-side; por defecto http://localhost:5000).
+# Se fija al hacer `next build`, no en runtime.
+BACKEND_URL=http://localhost:5000
 ```
+
+El navegador solo habla con el origen del frontend: `next.config.js` reenvia `/api/*` al backend (`rewrites`).
+La sesion es una cookie `httpOnly` que pone la API; el JWT nunca esta en `localStorage` ni es legible por scripts.
+Cada request lleva `X-Requested-With: BookingHub` (defensa CSRF).
 
 ## Docker
 

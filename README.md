@@ -46,10 +46,10 @@ Plataforma de reservas de servicios entre empresas y clientes.
 JWT_SECRET_KEY=YourSecureKeyMin32Characters
 DB_PASSWORD=YourSecurePassword
 CORS_ALLOWED_ORIGINS=https://yourdomain.com
-
-# Frontend
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 ```
+
+El frontend ya no usa `NEXT_PUBLIC_API_URL`: reenvia `/api/*` al backend con la variable de build `BACKEND_URL`
+(en docker-compose ya apunta a `http://api:8080`). La sesion es una cookie `httpOnly` de la API (ver `backend/README.md`).
 
 Para desarrollo local sin Docker (`dotnet run`), ver la sección de user-secrets en
 `backend/README.md` en su lugar - `.env`/`.env.example` solo aplican al flujo de docker-compose.
@@ -140,7 +140,7 @@ dotnet test          # Todos los tests
 
 ## Seguridad
 
-- Autenticación JWT con tokens de acceso
+- Autenticación JWT en cookie `httpOnly` (sin tokens en `localStorage`) y cabecera anti-CSRF
 - Contraseñas hasheadas con bcrypt
 - Rate limiting integrado
 - CORS configurado por entorno

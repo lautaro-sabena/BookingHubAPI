@@ -4,15 +4,11 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
-  companyId?: string;
+  companyId?: string | null;
 }
 
-export interface AuthResponse {
-  token: string;
-  userId: string;
-  email: string;
-  role: UserRole;
-}
+/** Body of login, register and /auth/me: the signed-in user. The JWT is only in the httpOnly session cookie. */
+export type AuthResponse = User;
 
 export interface RegisterRequest {
   email: string;
