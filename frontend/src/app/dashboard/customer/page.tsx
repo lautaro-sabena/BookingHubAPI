@@ -1,59 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
+import { ErrorNotice } from "@/components/ui/error-notice";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { useCancelReservation, useReservations } from "@/hooks/queries/useReservations";
+import { useRequireRole } from "@/hooks/useRequireRole";
 import { toCompanyLocalDate } from "@/lib/dateTime";
-import { Reservation } from "@/types";
 
 export default function CustomerDashboardPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { allowed } = useRequireRole("Customer", "/dashboard/owner");
+  const { data: reservations = [], isLoading, error } = useReservations();
+  const cancel = useCancelReservation();
 
-  useEffect(() => {
-    if (!authLoading && user?.role !== "Customer") {
-      router.push("/dashboard/owner");
-      return;
-    }
-
-    if (user?.role === "Customer") {
-      fetchReservations();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchReservations = async () => {
-    try {
-      const response = await api.get<{ items: Reservation[] }>("/reservations");
-      setReservations(response.data.items);
-    } catch (error) {
-      console.error("Failed to fetch reservations:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancel = async (id: string) => {
+  const handleCancel = (id: string) => {
     if (!confirm("Are you sure you want to cancel this reservation?")) return;
-    
-    try {
-      await api.put(`/reservations/${id}/cancel`);
-      setReservations(
-        reservations.map((r) =>
-          r.id === id ? { ...r, status: "Cancelled" } : r
-        )
-      );
-    } catch (err) {
-      console.error("Failed to cancel reservation:", err);
-    }
+    cancel.mutate(id);
   };
 
-  if (authLoading || loading) {
+  if (!allowed || isLoading) {
     return <div>Loading...</div>;
   }
 
@@ -67,6 +33,7 @@ export default function CustomerDashboardPage() {
           </Button>
         </Link>
       </div>
+      <ErrorNotice error={error ?? cancel.error} />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -93,17 +60,10 @@ export default function CustomerDashboardPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      reservation.status === "Confirmed" ? "bg-green-100 text-green-800" :
-                      reservation.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
-                      reservation.status === "Cancelled" ? "bg-red-100 text-red-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}>
-                      {reservation.status}
-                    </span>
+                    <StatusBadge status={reservation.status} />
                     {(reservation.status === "Pending" || reservation.status === "Confirmed") && (
-                      <Button 
-                        variant="destructive" 
+                      <Button
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleCancel(reservation.id)}
                       >

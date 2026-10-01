@@ -1,43 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import api from "@/lib/api";
-import { Company } from "@/types";
+import { useMyCompany } from "@/hooks/queries/useCompany";
+import { useRequireRole } from "@/hooks/useRequireRole";
 
 export default function CompanyPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { allowed } = useRequireRole("Owner");
+  // A 404 (no company yet) leaves `company` undefined and shows the "Create Company" prompt.
+  const { data: company, isLoading } = useMyCompany();
 
-  useEffect(() => {
-    if (!authLoading && user?.role !== "Owner") {
-      router.push("/dashboard");
-      return;
-    }
-
-    if (user?.role === "Owner") {
-      fetchCompany();
-    }
-  }, [user, authLoading, router]);
-
-  const fetchCompany = async () => {
-    try {
-      const response = await api.get<Company>("/companies/me");
-      setCompany(response.data);
-    } catch (err) {
-      console.error("Failed to fetch company:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (authLoading || loading) {
+  if (!allowed || isLoading) {
     return <div>Loading...</div>;
   }
 

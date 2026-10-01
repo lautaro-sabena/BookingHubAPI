@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useEffect, useSyncExternalStore, ReactNode } from "react";
 
 type Theme = "light" | "dark";
 
@@ -15,43 +15,39 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export { ThemeContext };
 export type { ThemeContextType };
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
+const themeListeners = new Set<() => void>();
 
-  useEffect(() => {
-    // Check localStorage on mount
-    const savedTheme = localStorage.getItem("theme") as Theme | null;
-    if (savedTheme) {
-      setThemeState(savedTheme);
-    } else {
-      // Default to system preference
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setThemeState(prefersDark ? "dark" : "light");
-    }
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    
-    // Save to localStorage
-    localStorage.setItem("theme", theme);
-    
-    // Apply to document
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [theme, mounted]);
-
-  const toggleTheme = () => {
-    setThemeState(prev => prev === "light" ? "dark" : "light");
+function subscribeToTheme(listener: () => void) {
+  themeListeners.add(listener);
+  return () => {
+    themeListeners.delete(listener);
   };
+}
+
+/** The saved choice, else the system preference. Only called in the browser (never during server render). */
+function readTheme(): Theme {
+  const saved = localStorage.getItem("theme");
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  // The theme lives outside React (localStorage + system preference), so read it as an external store: the server
+  // render and hydration use "light", then the browser's real value takes over without a mismatch.
+  const theme = useSyncExternalStore<Theme>(subscribeToTheme, readTheme, () => "light");
+
+  useEffect(() => {
+    // Only apply: persisting here would overwrite the saved choice with the "light" server snapshot on hydration.
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
+    localStorage.setItem("theme", newTheme);
+    themeListeners.forEach((listener) => listener());
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === "light" ? "dark" : "light");
   };
 
   return (

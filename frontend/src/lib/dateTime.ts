@@ -33,3 +33,16 @@ export function toDateInputValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+/** "09:00 AM" for the company-local wall clock of an API timestamp. */
+export function formatCompanyTime(iso: string): string {
+  return toCompanyLocalDate(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+/** Company-local calendar day of an API timestamp, e.g. "Monday, January 7, 2030" (pass other options to change it). */
+export function formatCompanyDate(
+  iso: string,
+  options: Intl.DateTimeFormatOptions = { weekday: "long", year: "numeric", month: "long", day: "numeric" },
+): string {
+  return toCompanyLocalDate(iso).toLocaleDateString("en-US", options);
+}
