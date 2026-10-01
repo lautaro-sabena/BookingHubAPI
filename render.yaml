@@ -24,10 +24,13 @@ services:
       # this trusts the immediate peer as the sole ingress. See Program.cs for the tradeoff.
       - key: ForwardedHeaders__TrustAllProxies
         value: "true"
-      # Browser traffic reaches the API through the frontend's /api proxy: X-Forwarded-For is
-      # "<client>, <frontend egress IP>", so two entries are proxies. Must match the real hop count.
-      - key: ForwardedHeaders__ForwardLimit
-        value: "2"
+      # Shared secret with the frontend (same value on both services). Requests through the frontend's /api
+      # proxy carry it in X-Frontend-Proxy-Key; only then does the API also skip the frontend hop in
+      # X-Forwarded-For ("<client>, <frontend egress IP>") and rate-limit per real client. Direct calls to the API
+      # trust the rightmost entry only, so a spoofed X-Forwarded-For cannot evade the limits. Generate a long random
+      # value (e.g. openssl rand -base64 32). Without it every user behind the frontend shares one rate-limit counter.
+      - key: FRONTEND_PROXY_KEY
+        sync: false
       # The session cookie is host-only, HttpOnly, SameSite=Lax and Secure (the default outside Development).
       # The frontend proxies /api, so browsers no longer call this origin: the CORS whitelist above only serves
       # other browser origins that call the API directly and needs no credentials.
@@ -40,9 +43,12 @@ services:
     dockerfilePath: render.Dockerfile
     envVars:
       # Server-side target of the /api/* proxy (rewrites in next.config.js). Use the API's PUBLIC https URL:
-      # its edge appends the frontend's IP to X-Forwarded-For, which ForwardLimit=2 above relies on.
+      # its edge appends the frontend's IP to X-Forwarded-For, which the API's frontend-hop trust relies on.
       # Read at BUILD time (render.Dockerfile ARG): changing it requires a redeploy with a rebuild.
       - key: BACKEND_URL
         value: https://bookinghubapi.onrender.com
       - key: NODE_ENV
         value: production
+      # Same value as the API's FRONTEND_PROXY_KEY. Read at runtime by src/proxy.ts, server-only (never NEXT_PUBLIC_).
+      - key: FRONTEND_PROXY_KEY
+        sync: false

@@ -1,5 +1,6 @@
 using System.Net;
 using AspNetCoreRateLimit;
+using BookingHubAPI.API.Middleware;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -163,10 +164,95 @@ public class RateLimitingTests
             "rotating a spoofed leading entry must not give the client a fresh counter");
     }
 
-    private static Task<HttpResponseMessage> SendWithForwardedFor(HttpClient client, string forwardedFor)
+    private const string ProxyKey = "test-frontend-proxy-key";
+
+    /// <summary>
+    /// A client calling the API directly can prepend fake X-Forwarded-For entries. Without the frontend proxy key
+    /// only the entry the edge appended (the rightmost) is trusted, so rotating the fake leading entry changes nothing.
+    /// </summary>
+    [Fact]
+    public async Task DirectCallWithSpoofedForwardedFor_ShouldBeKeyedOnTheEdgeAppendedClientIp()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, frontendProxyKey: ProxyKey);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "1.1.1.1, 203.0.113.10")).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "2.2.2.2, 203.0.113.10")).StatusCode.Should().Be((HttpStatusCode)429,
+            "the spoofed leading entry must not give the client a fresh counter");
+    }
+
+    /// <summary>The frontend proxy proves itself with the key, so its extra hop is skipped and the client is the key.</summary>
+    [Fact]
+    public async Task ProxiedCallWithTheValidKey_ShouldBeKeyedOnTheFirstClientEntry()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, frontendProxyKey: ProxyKey);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99", ProxyKey)).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99", ProxyKey)).StatusCode.Should().Be((HttpStatusCode)429,
+            "the same client behind the frontend exhausts its own counter");
+        (await SendWithForwardedFor(client, "198.51.100.20, 192.0.2.99", ProxyKey)).StatusCode.Should().NotBe((HttpStatusCode)429,
+            "another client behind the same frontend must not share that counter");
+    }
+
+    [Fact]
+    public async Task ProxiedCallWithTheValidKey_ShouldStillIgnoreEntriesTheClientPrepended()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, frontendProxyKey: ProxyKey);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "1.1.1.1, 203.0.113.10, 192.0.2.99", ProxyKey)).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "2.2.2.2, 203.0.113.10, 192.0.2.99", ProxyKey)).StatusCode.Should().Be((HttpStatusCode)429);
+    }
+
+    [Theory]
+    [InlineData("wrong-key")]
+    [InlineData("")]
+    public async Task ProxiedCallWithAnInvalidKey_ShouldNotGetTheExtraHopTrusted(string suppliedKey)
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true, frontendProxyKey: ProxyKey);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99", suppliedKey)).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "198.51.100.20, 192.0.2.99", suppliedKey)).StatusCode.Should().Be((HttpStatusCode)429,
+            "without a valid key the rightmost entry decides, which is the shared frontend hop here");
+    }
+
+    [Fact]
+    public async Task KeyHeaderWithoutAConfiguredKey_ShouldNeverTrustTheExtraHop()
+    {
+        using var factory = new SingleRequestLimitApiFactory(trustAllProxies: true);
+        var client = factory.CreateClient();
+
+        (await SendWithForwardedFor(client, "203.0.113.10, 192.0.2.99", "anything")).StatusCode.Should().NotBe((HttpStatusCode)429);
+        (await SendWithForwardedFor(client, "198.51.100.20, 192.0.2.99", "anything")).StatusCode.Should().Be((HttpStatusCode)429);
+    }
+
+    [Fact]
+    public async Task TheKeyHeader_ShouldBeRemovedOnceVerified()
+    {
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        context.Request.Headers[FrontendProxyKey.HeaderName] = ProxyKey;
+        var seenByNext = true;
+
+        await new FrontendProxyKey(ProxyKey).MarkAndStrip(context, ctx =>
+        {
+            seenByNext = ctx.Request.Headers.ContainsKey(FrontendProxyKey.HeaderName);
+            return Task.CompletedTask;
+        });
+
+        seenByNext.Should().BeFalse("the secret must not travel further down the pipeline");
+        FrontendProxyKey.IsVerified(context).Should().BeTrue();
+    }
+
+    private static Task<HttpResponseMessage> SendWithForwardedFor(HttpClient client, string forwardedFor, string? proxyKey = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, UnmappedProbePath);
         request.Headers.Add("X-Forwarded-For", forwardedFor);
+        if (proxyKey is not null)
+        {
+            request.Headers.TryAddWithoutValidation(FrontendProxyKey.HeaderName, proxyKey);
+        }
         return client.SendAsync(request);
     }
 
@@ -207,7 +293,7 @@ public class RateLimitingTests
     /// Allows one request per client IP and sets ForwardedHeaders:TrustAllProxies explicitly,
     /// so tests can compare the trusted (Render) and untrusted (default) proxy configurations.
     /// </summary>
-    private class SingleRequestLimitApiFactory(bool trustAllProxies, int forwardLimit = 1) : BookingApiFactory
+    private class SingleRequestLimitApiFactory(bool trustAllProxies, int forwardLimit = 1, string? frontendProxyKey = null) : BookingApiFactory
     {
         protected override bool RelaxRateLimiting => false;
 
@@ -218,7 +304,8 @@ public class RateLimitingTests
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ForwardedHeaders:TrustAllProxies"] = trustAllProxies.ToString(),
-                    ["ForwardedHeaders:ForwardLimit"] = forwardLimit.ToString()
+                    ["ForwardedHeaders:ForwardLimit"] = forwardLimit.ToString(),
+                    ["FRONTEND_PROXY_KEY"] = frontendProxyKey
                 });
             });
 

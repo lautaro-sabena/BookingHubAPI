@@ -3,16 +3,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useContext } from 'react';
 
-const { push, fetchCurrentUser, logoutRequest } = vi.hoisted(() => ({
+const { push, fetchCurrentUser, logoutRequest, loginRequest } = vi.hoisted(() => ({
   push: vi.fn(),
   fetchCurrentUser: vi.fn(),
   logoutRequest: vi.fn(),
+  loginRequest: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('@/lib/auth', () => ({
   fetchCurrentUser,
   logoutRequest,
-  loginRequest: vi.fn(),
+  loginRequest,
   registerRequest: vi.fn(),
 }));
 
@@ -29,6 +30,7 @@ function Probe() {
       </span>
       <span data-testid="logout-error">{String(auth.logoutError)}</span>
       <button onClick={() => void auth.logout()}>logout</button>
+      <button onClick={() => void auth.login("a@b.com", "pw")}>login</button>
     </div>
   );
 }
@@ -63,13 +65,14 @@ describe('AuthProvider', () => {
       expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('shows a retry state on an outage instead of signing out, and recovers on retry', async () => {
+    it('keeps the app rendered with a retry banner on an outage, reporting auth as still loading', async () => {
       fetchCurrentUser.mockRejectedValueOnce(new Error('502')).mockResolvedValueOnce(user);
       renderProvider();
 
       const retry = await screen.findByRole('button', { name: 'Retry' });
       expect(screen.getByRole('alert').textContent).toContain("Can't reach the server");
-      expect(screen.queryByTestId('state')).toBeNull();
+      // Public pages keep working; protected pages see "loading" and do not redirect to /login.
+      expect(screen.getByTestId('state').textContent).toBe('loading');
       expect(push).not.toHaveBeenCalled();
 
       retry.click();
@@ -77,6 +80,18 @@ describe('AuthProvider', () => {
       await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
       expect(fetchCurrentUser).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it('clears the outage state after a successful login, so auth stops reporting loading', async () => {
+    fetchCurrentUser.mockRejectedValue(new Error('502'));
+    loginRequest.mockResolvedValue(user);
+    renderProvider();
+    await screen.findByRole('button', { name: 'Retry' });
+
+    screen.getByText('login').click();
+
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   describe('logout', () => {

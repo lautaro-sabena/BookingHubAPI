@@ -30,6 +30,11 @@ Crear un archivo `.env.local` (opcional):
 # Destino del proxy /api/* (server-side; por defecto http://localhost:5000).
 # Se fija al hacer `next build`, no en runtime.
 BACKEND_URL=http://localhost:5000
+
+# Secreto compartido con la API (mismo valor que su FRONTEND_PROXY_KEY). Solo server-side, se lee en runtime.
+# `src/proxy.ts` lo añade como cabecera X-Frontend-Proxy-Key a /api/*; la API solo confia en el salto extra de
+# X-Forwarded-For (IP real del cliente para el rate limit) si la clave coincide. Opcional en local.
+FRONTEND_PROXY_KEY=change-me
 ```
 
 El navegador solo habla con el origen del frontend: `next.config.js` reenvia `/api/*` al backend (`rewrites`).
