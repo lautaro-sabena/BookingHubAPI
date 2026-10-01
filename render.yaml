@@ -18,6 +18,10 @@ services:
         value: BookingHubAPI
       - key: Cors__AllowedOrigins
         value: https://bookinghubapi-frontend-h0ui.onrender.com
+      # Render's proxy IP isn't published/fixed, so we can't pin KnownProxies/KnownNetworks;
+      # this trusts the immediate peer as the sole ingress. See Program.cs for the tradeoff.
+      - key: ForwardedHeaders__TrustAllProxies
+        value: "true"
 
   - type: web
     name: bookinghub-frontend

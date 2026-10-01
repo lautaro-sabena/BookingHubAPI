@@ -20,10 +20,11 @@ public class BookingApiFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Business-flow tests (e.g. AuthControllerTests) call the same auth endpoints many
     /// times against one shared factory instance, which would otherwise trip the real
-    /// production login/register rate-limit rules loaded from rate-limit.json. True (the
-    /// default) relaxes those rules to a large limit so functional tests aren't coupled to
-    /// the auth throttle. RateLimitingTests overrides this to false to verify the real
-    /// rules and their enforcement.
+    /// production login/register rate-limit rules configured in appsettings.json. True (the
+    /// default) replaces every configured rule with a single, effectively unlimited
+    /// wildcard rule so functional tests aren't coupled to the auth throttle. Tests that
+    /// exercise the real limiter override this to false to verify the production rules and
+    /// their enforcement.
     /// </summary>
     protected virtual bool RelaxRateLimiting => true;
 

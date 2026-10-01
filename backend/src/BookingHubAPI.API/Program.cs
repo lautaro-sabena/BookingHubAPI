@@ -6,6 +6,7 @@ using BookingHubAPI.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FluentValidation;
@@ -43,9 +44,21 @@ builder.Services.AddAutoMapper(typeof(Program));
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// rate-limit.json is not loaded by the host by default (only appsettings*.json are);
-// without this, IpRateLimiting binds to an empty section and every rule is silently ignored.
-builder.Configuration.AddJsonFile("rate-limit.json", optional: false, reloadOnChange: true);
+// Behind Render's proxy every request arrives from the proxy IP, so the rate limiter would
+// share one counter across all clients. ForwardedHeaders restores the client IP from
+// X-Forwarded-For for every consumer. Render publishes no fixed proxy range, so
+// ForwardedHeaders:TrustAllProxies (set in render.yaml) trusts the single immediate hop.
+// Only enable it where the proxy is the sole ingress; otherwise clients can spoof the header.
+builder.Services.AddOptions<ForwardedHeadersOptions>().Configure<IConfiguration>((options, configuration) =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    if (configuration.GetValue<bool>("ForwardedHeaders:TrustAllProxies"))
+    {
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
+});
 
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
@@ -107,6 +120,9 @@ builder.Services.AddHealthChecks()
     .AddDbContextCheck<BookingDbContext>();
 
 var app = builder.Build();
+
+// Must run before anything that reads RemoteIpAddress (rate limiting, CORS, auth/audit code).
+app.UseForwardedHeaders();
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
 
