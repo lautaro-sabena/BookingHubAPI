@@ -114,6 +114,42 @@ public class CompanyServiceTests
         _users.Verify(u => u.UpdateAsync(_owner), Times.Once);
     }
 
+    [Theory]
+    [InlineData("Not/AZone")]
+    [InlineData("Mars")]
+    [InlineData("  ")]
+    public async Task CreateCompany_WithUnknownTimeZone_ShouldReturnValidationErrorAndWriteNothing(string timeZone)
+    {
+        var result = await _sut.CreateCompanyAsync(_owner.Id, new CompanyRequest("New", null, timeZone));
+
+        result.Error!.Kind.Should().Be(ErrorKind.Validation);
+        result.Error.Message.Should().Be("Invalid time zone");
+        _companies.Verify(c => c.CreateAsync(It.IsAny<Company>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("UTC")]
+    [InlineData("America/Argentina/Buenos_Aires")]
+    [InlineData("Europe/Madrid")]
+    public async Task CreateCompany_WithKnownTimeZone_ShouldSucceed(string timeZone)
+    {
+        var result = await _sut.CreateCompanyAsync(_owner.Id, new CompanyRequest("New", null, timeZone));
+
+        result.Value.TimeZone.Should().Be(timeZone);
+    }
+
+    [Fact]
+    public async Task UpdateMyCompany_WithUnknownTimeZone_ShouldReturnValidationErrorAndChangeNothing()
+    {
+        _companies.Setup(c => c.GetByOwnerIdAsync(_owner.Id)).ReturnsAsync(_company);
+
+        var result = await _sut.UpdateMyCompanyAsync(_owner.Id, new CompanyUpdateRequest("Renamed", null, "Not/AZone"));
+
+        result.Error!.Kind.Should().Be(ErrorKind.Validation);
+        _company.Name.Should().Be("Acme");
+        _companies.Verify(c => c.UpdateAsync(It.IsAny<Company>()), Times.Never);
+    }
+
     // ---------- UpdateMyCompanyAsync ----------
 
     [Fact]

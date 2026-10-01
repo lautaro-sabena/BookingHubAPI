@@ -56,6 +56,11 @@ public class CompanyService : ICompanyService
             return Error.Validation("You already have a company");
         }
 
+        if (!IsKnownTimeZone(request.TimeZone))
+        {
+            return Error.Validation(InvalidTimeZoneMessage);
+        }
+
         var company = new Company
         {
             Name = request.Name,
@@ -80,6 +85,11 @@ public class CompanyService : ICompanyService
             return Error.NotFound("Company not found");
         }
 
+        if (!string.IsNullOrEmpty(request.TimeZone) && !IsKnownTimeZone(request.TimeZone))
+        {
+            return Error.Validation(InvalidTimeZoneMessage);
+        }
+
         if (!string.IsNullOrEmpty(request.Name))
         {
             company.Name = request.Name;
@@ -97,6 +107,11 @@ public class CompanyService : ICompanyService
 
         return ToResponse(await _companyRepository.UpdateAsync(company));
     }
+
+    private const string InvalidTimeZoneMessage = "Invalid time zone";
+
+    private static bool IsKnownTimeZone(string timeZoneId) =>
+        TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out _);
 
     private static CompanyResponse ToResponse(Company c) =>
         new(c.Id, c.Name, c.Description, c.TimeZone, c.IsActive, c.OwnerId);
