@@ -64,6 +64,22 @@ describe("AvailabilityPage", () => {
     expect((screen.getByLabelText("Sunday open") as HTMLInputElement).checked).toBe(true);
   });
 
+  it("keeps the saved confirmation after the refetch that follows a successful save", async () => {
+    // Saving turns Sunday on; the refetch returns that new schedule, which changes the form key and remounts it.
+    get.mockResolvedValueOnce({ data: stored }).mockResolvedValue({
+      data: [...stored, { dayOfWeek: 0, startTime: "09:00:00", endTime: "17:00:00", isActive: true }],
+    });
+    put.mockResolvedValue({});
+    renderPage();
+    fireEvent.click(await screen.findByLabelText("Sunday open"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Availability" }));
+
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect((screen.getByLabelText("Sunday open") as HTMLInputElement).checked).toBe(true));
+    expect(await screen.findByText(/Availability saved successfully/)).toBeTruthy();
+  });
+
   it("resyncs the form when a refetch returns a different schedule", async () => {
     get.mockResolvedValueOnce({ data: stored });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
