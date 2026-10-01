@@ -1,3 +1,4 @@
+using BookingHubAPI.API.Authentication;
 using BookingHubAPI.API.Configuration;
 using BookingHubAPI.API.Middleware;
 using BookingHubAPI.Application;
@@ -54,6 +55,10 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddApplication();
 
+// The session JWT travels in an httpOnly cookie (see AuthController); Authorization: Bearer keeps working.
+builder.Services.Configure<SessionCookieOptions>(builder.Configuration.GetSection(SessionCookieOptions.SectionName));
+builder.Services.AddSingleton<SessionCookie>();
+
 // Behind Render's proxy every request arrives from the proxy IP, so the rate limiter would
 // share one counter across all clients. ForwardedHeaders restores the client IP from
 // X-Forwarded-For for every consumer. Render publishes no fixed proxy range, so
@@ -96,6 +101,19 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
         ClockSkew = TimeSpan.Zero,
         ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 }
+    };
+
+    // Browsers authenticate with the session cookie; an explicit Authorization header (API clients) always wins.
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            if (string.IsNullOrEmpty(context.Request.Headers.Authorization))
+            {
+                context.Token = context.HttpContext.RequestServices.GetRequiredService<SessionCookie>().Read(context.Request);
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -149,6 +167,9 @@ app.UseRouting();
 // HTTPS redirection is handled by Render's proxy
 
 app.UseIpRateLimiting();
+
+// After routing (reads endpoint metadata), before the cookie is turned into an identity.
+app.UseMiddleware<CsrfHeaderMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -26,7 +26,7 @@ public static class TestApi
     public static Task<TestUser> RegisterCustomerAsync(BookingApiFactory factory) =>
         RegisterAsync(factory, "Customer");
 
-    /// <summary>Registers a user with a unique e-mail, logs in, and returns a client carrying the login token.</summary>
+    /// <summary>Registers a user with a unique e-mail, logs in, and returns a client carrying the login token as a bearer token.</summary>
     public static async Task<TestUser> RegisterAsync(BookingApiFactory factory, string role)
     {
         var email = $"{role.ToLowerInvariant()}-{Guid.NewGuid():N}@test.com";
@@ -37,11 +37,13 @@ public static class TestApi
 
         var login = await anonymous.PostAsJsonAsync("/api/auth/login", new LoginRequest(email, Password));
         login.EnsureSuccessStatusCode();
-        var token = (await login.Content.ReadFromJsonAsync<TokenResponse>())!;
+        var user = (await login.Content.ReadFromJsonAsync<UserDto>())!;
 
+        // The token only travels in the session cookie; API clients may present it as a bearer token instead.
+        var token = login.SessionToken();
         var client = factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
-        return new TestUser(client, token.UserId, token.Email, token.Role, token.Token);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return new TestUser(client, user.Id, user.Email, user.Role, token);
     }
 
     /// <summary>

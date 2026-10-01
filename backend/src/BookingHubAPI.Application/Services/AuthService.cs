@@ -118,6 +118,6 @@ public class AuthService : IAuthService
     {
         var role = user.Role.ToString();
         var token = _jwtService.GenerateToken(user.Id, user.Email, role, user.CompanyId);
-        return new TokenResponse(token, user.Id, user.Email, role);
+        return new TokenResponse(token, user.Id, user.Email, role, user.CompanyId);
     }
 }

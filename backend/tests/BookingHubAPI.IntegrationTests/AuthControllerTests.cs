@@ -1,4 +1,5 @@
 using BookingHubAPI.Application.DTOs;
+using BookingHubAPI.IntegrationTests.Support;
 using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
@@ -16,7 +17,7 @@ public class AuthControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
-    public async Task Register_WithValidData_ShouldReturnToken()
+    public async Task Register_WithValidData_ShouldSetTheSessionCookieAndReturnTheUser()
     {
         var request = new RegisterRequest("newuser@test.com", "Password123!", "Customer");
 
@@ -24,10 +25,10 @@ public class AuthControllerTests : IClassFixture<BookingApiFactory>
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var content = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        response.SessionToken().Should().NotBeEmpty();
+        var content = await response.Content.ReadFromJsonAsync<UserDto>();
         content.Should().NotBeNull();
-        content!.Token.Should().NotBeEmpty();
-        content.Email.Should().Be("newuser@test.com");
+        content!.Email.Should().Be("newuser@test.com");
     }
 
     [Fact]
@@ -52,7 +53,7 @@ public class AuthControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
-    public async Task Login_WithValidCredentials_ShouldReturnToken()
+    public async Task Login_WithValidCredentials_ShouldSetTheSessionCookie()
     {
         var registerRequest = new RegisterRequest("logintest@test.com", "Password123!", "Customer");
         await _client.PostAsJsonAsync("/api/auth/register", registerRequest);
@@ -62,9 +63,8 @@ public class AuthControllerTests : IClassFixture<BookingApiFactory>
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var content = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        content.Should().NotBeNull();
-        content!.Token.Should().NotBeEmpty();
+        response.SessionToken().Should().NotBeEmpty();
+        (await response.Content.ReadFromJsonAsync<UserDto>()).Should().NotBeNull();
     }
 
     [Fact]

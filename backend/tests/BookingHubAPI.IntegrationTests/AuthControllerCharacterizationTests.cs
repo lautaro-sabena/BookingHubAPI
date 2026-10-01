@@ -44,7 +44,7 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
     // ---------- POST /api/auth/register ----------
 
     [Fact]
-    public async Task Register_Customer_ShouldReturnTokenResponseWithAllFields()
+    public async Task Register_Customer_ShouldReturnTheUserAndKeepTheTokenOutOfTheBody()
     {
         var email = UniqueEmail("customer");
 
@@ -52,11 +52,12 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("token", "userId", "email", "role");
+        body.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("id", "email", "role", "companyId");
         body.GetProperty("email").GetString().Should().Be(email);
         body.GetProperty("role").GetString().Should().Be("Customer");
-        body.GetProperty("userId").GetGuid().Should().NotBeEmpty();
-        body.GetProperty("token").GetString().Should().NotBeNullOrEmpty();
+        body.GetProperty("id").GetGuid().Should().NotBeEmpty();
+        body.GetProperty("companyId").ValueKind.Should().Be(JsonValueKind.Null);
+        response.SessionToken().Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -65,11 +66,11 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
         var email = UniqueEmail("customer");
 
         var response = await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "Password123!", "Customer"));
-        var registered = (await response.Content.ReadFromJsonAsync<TokenResponse>())!;
+        var registered = (await response.Content.ReadFromJsonAsync<UserDto>())!;
 
-        var token = Decode(registered.Token);
-        Claim(token, "sub").Should().Be(registered.UserId.ToString());
-        Claim(token, "userId").Should().Be(registered.UserId.ToString());
+        var token = Decode(response.SessionToken());
+        Claim(token, "sub").Should().Be(registered.Id.ToString());
+        Claim(token, "userId").Should().Be(registered.Id.ToString());
         Claim(token, "email").Should().Be(email);
         RoleClaim(token).Should().Be("Customer");
         Claim(token, "companyId").Should().BeNull();
@@ -85,20 +86,22 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
         var response = await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(email, "Password123!", "Owner"));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var registered = (await response.Content.ReadFromJsonAsync<TokenResponse>())!;
+        var registered = (await response.Content.ReadFromJsonAsync<UserDto>())!;
         registered.Role.Should().Be("Owner");
 
-        var token = Decode(registered.Token);
+        var sessionToken = response.SessionToken();
+        var token = Decode(sessionToken);
         RoleClaim(token).Should().Be("Owner");
-        Claim(token, "userId").Should().Be(registered.UserId.ToString());
+        Claim(token, "userId").Should().Be(registered.Id.ToString());
         var companyId = Claim(token, "companyId");
         companyId.Should().NotBeNullOrEmpty();
+        registered.CompanyId.ToString().Should().Be(companyId);
 
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new("Bearer", registered.Token);
+        client.DefaultRequestHeaders.Authorization = new("Bearer", sessionToken);
         var company = await client.GetFromJsonAsync<CompanyResponse>("/api/companies/me");
         company!.Id.ToString().Should().Be(companyId);
-        company.OwnerId.Should().Be(registered.UserId);
+        company.OwnerId.Should().Be(registered.Id);
         company.Name.Should().Be($"{email}'s Company");
         company.TimeZone.Should().Be("UTC");
         company.IsActive.Should().BeTrue();
@@ -125,7 +128,7 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
         var response = await _anonymous.PostAsJsonAsync("/api/auth/register", new RegisterRequest(UniqueEmail(), "Password123!", sentRole));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Role.Should().Be(expectedRole);
+        (await response.Content.ReadFromJsonAsync<UserDto>())!.Role.Should().Be(expectedRole);
     }
 
     [Theory]
@@ -215,7 +218,7 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
             "/api/auth/register", new RegisterRequest($"  {email.ToUpperInvariant()}", "Password123!", "Customer"));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Email.Should().Be(email);
+        (await response.Content.ReadFromJsonAsync<UserDto>())!.Email.Should().Be(email);
     }
 
     [Theory]
@@ -253,18 +256,19 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
     // ---------- POST /api/auth/login ----------
 
     [Fact]
-    public async Task Login_ShouldReturnTokenResponseMatchingTheRegisteredUser()
+    public async Task Login_ShouldReturnTheRegisteredUserAndKeepTheTokenOutOfTheBody()
     {
         var email = UniqueEmail("owner");
         var registered = (await (await _anonymous.PostAsJsonAsync(
-            "/api/auth/register", new RegisterRequest(email, "Password123!", "Owner"))).Content.ReadFromJsonAsync<TokenResponse>())!;
+            "/api/auth/register", new RegisterRequest(email, "Password123!", "Owner"))).Content.ReadFromJsonAsync<UserDto>())!;
 
         var response = await _anonymous.PostAsJsonAsync("/api/auth/login", new LoginRequest(email, "Password123!"));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("token", "userId", "email", "role");
-        body.GetProperty("userId").GetGuid().Should().Be(registered.UserId);
+        body.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo("id", "email", "role", "companyId");
+        body.GetProperty("id").GetGuid().Should().Be(registered.Id);
+        body.GetProperty("companyId").GetGuid().Should().Be(registered.CompanyId!.Value);
         body.GetProperty("email").GetString().Should().Be(email);
         body.GetProperty("role").GetString().Should().Be("Owner");
     }
@@ -296,7 +300,7 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
         var response = await _anonymous.PostAsJsonAsync("/api/auth/login", new LoginRequest(email.ToUpperInvariant(), "Password123!"));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await response.Content.ReadFromJsonAsync<TokenResponse>())!.Email.Should().Be(email);
+        (await response.Content.ReadFromJsonAsync<UserDto>())!.Email.Should().Be(email);
     }
 
     [Theory]
