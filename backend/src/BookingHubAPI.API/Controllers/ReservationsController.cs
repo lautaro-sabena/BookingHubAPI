@@ -1,5 +1,6 @@
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Application.Services;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BookingHubAPI.API.Extensions;
@@ -20,8 +21,8 @@ public class ReservationsController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResult<ReservationResponse>>> GetReservations(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10,
+        [FromQuery, Range(1, PagingLimits.MaxPage)] int page = 1,
+        [FromQuery, Range(1, PagingLimits.MaxPageSize)] int pageSize = 10,
         [FromQuery] string? status = null)
     {
         var result = await _reservationService.GetReservationsAsync(User.GetUserId(), page, pageSize, status);

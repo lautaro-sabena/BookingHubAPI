@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,7 @@ export default function BookServicePage({ params }: { params: Promise<{ id: stri
         router.push("/dashboard");
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create reservation");
+      setError(getApiErrorMessage(err, "Failed to create reservation"));
     } finally {
       setSaving(false);
     }
