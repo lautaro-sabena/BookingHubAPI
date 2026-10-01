@@ -11,7 +11,8 @@ public interface IWorkingHoursService
 
     /// <summary>
     /// Replaces the company's schedule with the request (inactive days keep their times) and returns the saved
-    /// seven-day schedule. Rejects out-of-range or duplicate days and, for active days, start not before end.
+    /// seven-day schedule. Rejects out-of-range or duplicate days, times outside 00:00-24:00 and, for active
+    /// days, start not before end.
     /// </summary>
     Task<Result<IReadOnlyList<WorkingHoursResponse>>> ReplaceWorkingHoursAsync(Guid userId, IReadOnlyList<WorkingHoursRequest> requests);
 }

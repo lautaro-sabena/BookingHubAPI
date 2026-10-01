@@ -165,6 +165,32 @@ public class WorkingHoursServiceTests
     }
 
     [Theory]
+    [InlineData(-1, 8, true)]
+    [InlineData(8, 25, true)]
+    [InlineData(25, 26, true)]
+    [InlineData(-1, 8, false)]   // an inactive day keeps its times, but they still have to be a real time of day
+    [InlineData(8, 25, false)]
+    public async Task ReplaceWorkingHours_WithTimesOutsideTheDay_ShouldReturnValidationAndTouchNothing(
+        int start, int end, bool isActive)
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(
+            _owner.Id, new[] { Request(DayOfWeek.Thursday, start, end, isActive) });
+
+        result.Error!.Kind.Should().Be(ErrorKind.Validation);
+        result.Error.Message.Should().Be("Working hours must be within 00:00 and 24:00 for Thursday");
+        _hours.Verify(h => h.DeleteByCompanyIdAsync(It.IsAny<Guid>()), Times.Never);
+        _hours.Verify(h => h.CreateAsync(It.IsAny<WorkingHours>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_WithADayRunningUntilMidnight_ShouldBeAccepted()
+    {
+        var result = await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request(DayOfWeek.Friday, 0, 24) });
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(12, 8)]
     [InlineData(8, 8)]
     public async Task ReplaceWorkingHours_WithActiveDayStartingNotBeforeItsEnd_ShouldReturnValidationAndTouchNothing(

@@ -135,9 +135,9 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
         var owner = await TestApi.RegisterOwnerAsync(_factory);
         var service = await TestApi.CreateServiceAsync(owner);
         var customer = await TestApi.RegisterCustomerAsync(_factory);
-        var first = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 8));
-        var second = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 10));
-        var third = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 12));
+        var first = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 9));
+        var second = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 11));
+        var third = await BookOkAsync(customer, service, TestApi.FutureSlot(hour: 13));
         (await customer.Client.PutAsync($"/api/reservations/{second.Id}/cancel", null))
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -246,6 +246,124 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
         var response = await BookAsync(customer, service, DateTime.UtcNow.AddDays(-1));
 
         await AssertErrorAsync(response, HttpStatusCode.BadRequest, "Cannot book in the past");
+    }
+
+    // ---------- POST /api/reservations: working hours ----------
+
+    private const string OutsideHoursMessage = "The selected time is outside the company's working hours";
+
+    [Theory]
+    [InlineData(8, 60)]    // before the 09:00 opening
+    [InlineData(17, 60)]   // starts at the 17:00 closing
+    [InlineData(20, 60)]   // well after closing
+    [InlineData(16, 120)]  // starts inside but spans the closing time
+    [InlineData(8, 120)]   // starts before opening and ends inside
+    public async Task Create_OutsideWorkingHours_ShouldReturnBadRequest(int startHour, int durationMinutes)
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, TestApi.FutureSlot(hour: startHour));
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, OutsideHoursMessage);
+        (await ListAsync(customer)).TotalCount.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(9, 60)]    // starts exactly at opening
+    [InlineData(16, 60)]   // ends exactly at closing
+    [InlineData(9, 480)]   // fills the whole day
+    public async Task Create_TouchingTheWorkingHoursBoundaries_ShouldSucceed(int startHour, int durationMinutes)
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, TestApi.FutureSlot(hour: startHour));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Create_OnAnInactiveDay_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var start = TestApi.FutureSlot();
+        await TestApi.SetWorkingHoursAsync(owner, TestApi.Hours(start.DayOfWeek, 9, 17, isActive: false));
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, start);
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, OutsideHoursMessage);
+    }
+
+    [Fact]
+    public async Task Create_OnADayWithoutAnyHoursConfigured_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, openAllWeek: false);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, TestApi.FutureSlot());
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, OutsideHoursMessage);
+    }
+
+    [Fact]
+    public async Task Create_SpanningMidnight_ShouldReturnBadRequestEvenWhenTheDayRunsUntilMidnight()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 120);
+        var start = TestApi.FutureSlot(hour: 23);
+        await TestApi.SetWorkingHoursAsync(
+            owner, TestApi.Hours(start.DayOfWeek, 0, 24), TestApi.Hours(start.AddDays(1).DayOfWeek, 0, 24));
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var response = await BookAsync(customer, service, start);
+
+        await AssertErrorAsync(response, HttpStatusCode.BadRequest, OutsideHoursMessage);
+    }
+
+    [Fact]
+    public async Task Create_ShouldHonourTheScheduleOfTheDayTheBookingStartsOn()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner);
+        var monday = TestApi.FutureSlot();
+        while (monday.DayOfWeek != DayOfWeek.Monday)
+        {
+            monday = monday.AddDays(1);
+        }
+
+        await TestApi.SetWorkingHoursAsync(owner, TestApi.Hours(DayOfWeek.Monday, 14, 18));
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+
+        var morning = await BookAsync(customer, service, monday.Date.AddHours(10));
+        var afternoon = await BookAsync(customer, service, monday.Date.AddHours(15));
+
+        await AssertErrorAsync(morning, HttpStatusCode.BadRequest, OutsideHoursMessage);
+        afternoon.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Create_ForEverySlotOfferedByAvailability_ShouldSucceed()
+    {
+        // Booking and availability share one rule: whatever the endpoint offers must be bookable.
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var service = await TestApi.CreateServiceAsync(owner, durationMinutes: 45);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var day = TestApi.FutureSlot().Date;
+
+        var offered = await customer.Client.GetFromJsonAsync<List<AvailableSlotResponse>>(
+            $"/api/availability/{service.Id}?date={day:yyyy-MM-dd}");
+
+        offered.Should().HaveCount(10);
+        foreach (var slot in offered!)
+        {
+            (await BookAsync(customer, service, slot.StartTime)).StatusCode.Should().Be(HttpStatusCode.Created);
+        }
     }
 
     [Fact]

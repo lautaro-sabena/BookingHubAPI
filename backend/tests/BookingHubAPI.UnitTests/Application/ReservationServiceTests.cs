@@ -53,7 +53,17 @@ public class ReservationServiceTests
         }
 
         _services.Setup(s => s.GetByIdAsync(_service.Id)).ReturnsAsync(_service);
-        _companies.Setup(c => c.GetByIdAsync(_company.Id)).ReturnsAsync(_company);
+        // Open every day 08:00-18:00; the fixed "now" bookings below (08:00 + 45 minutes) fall inside.
+        foreach (var day in Enum.GetValues<DayOfWeek>())
+        {
+            _company.WorkingHours.Add(new WorkingHours
+            {
+                CompanyId = _company.Id, DayOfWeek = day, IsActive = true,
+                StartTime = TimeSpan.FromHours(8), EndTime = TimeSpan.FromHours(18)
+            });
+        }
+
+        _companies.Setup(c => c.GetByIdWithWorkingHoursAsync(_company.Id)).ReturnsAsync(_company);
         _reservations.Setup(r => r.CreateAsync(It.IsAny<Reservation>()))
             .ReturnsAsync((Reservation r) => { r.Id = Guid.NewGuid(); r.CreatedAt = Now.UtcDateTime; return r; });
         _reservations.Setup(r => r.UpdateAsync(It.IsAny<Reservation>()))
@@ -155,6 +165,71 @@ public class ReservationServiceTests
             _customer.Id, new ReservationRequest(_service.Id, Now.UtcDateTime, null));
 
         result.IsSuccess.Should().BeTrue();
+    }
+
+    // ---------- create: booking hours ----------
+
+    private static DateTime OnWednesday(double hour) => new DateTime(2030, 1, 2).AddHours(hour);
+
+    [Theory]
+    [InlineData(7.0)]    // before opening (08:00)
+    [InlineData(7.5)]    // starts before opening, ends inside
+    [InlineData(17.5)]   // starts inside, 45 minutes end after closing (18:00)
+    [InlineData(18.0)]   // starts at closing
+    public async Task Create_OutsideWorkingHours_ReturnsValidationErrorWithoutCreating(double startHour)
+    {
+        var result = await _sut.CreateReservationAsync(
+            _customer.Id, new ReservationRequest(_service.Id, OnWednesday(startHour), null));
+
+        AssertFailure(result, ErrorKind.Validation);
+        result.Error!.Message.Should().Be(ReservationService.OutsideWorkingHoursMessage);
+        _reservations.Verify(r => r.CreateAsync(It.IsAny<Reservation>()), Times.Never);
+        _notifications.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(8.0)]    // exactly at opening
+    [InlineData(17.25)]  // ends exactly at closing
+    public async Task Create_TouchingTheWorkingHoursBoundary_IsAllowed(double startHour)
+    {
+        var result = await _sut.CreateReservationAsync(
+            _customer.Id, new ReservationRequest(_service.Id, OnWednesday(startHour), null));
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Create_OnAnInactiveDay_ReturnsValidationError()
+    {
+        _company.WorkingHours.Single(wh => wh.DayOfWeek == DayOfWeek.Wednesday).IsActive = false;
+
+        var result = await _sut.CreateReservationAsync(
+            _customer.Id, new ReservationRequest(_service.Id, OnWednesday(10), null));
+
+        AssertFailure(result, ErrorKind.Validation);
+        result.Error!.Message.Should().Be(ReservationService.OutsideWorkingHoursMessage);
+    }
+
+    [Fact]
+    public async Task Create_WhenTheCompanyHasNoSchedule_ReturnsValidationError()
+    {
+        _company.WorkingHours.Clear();
+
+        var result = await _sut.CreateReservationAsync(
+            _customer.Id, new ReservationRequest(_service.Id, OnWednesday(10), null));
+
+        AssertFailure(result, ErrorKind.Validation);
+        result.Error!.Message.Should().Be(ReservationService.OutsideWorkingHoursMessage);
+    }
+
+    [Fact]
+    public async Task Create_ReportsPastValidationBeforeWorkingHours()
+    {
+        // 2030-01-01 07:00 is both before "now" (08:00) and outside the working hours.
+        var result = await _sut.CreateReservationAsync(
+            _customer.Id, new ReservationRequest(_service.Id, new DateTime(2030, 1, 1, 7, 0, 0), null));
+
+        result.Error!.Message.Should().Be("Cannot book in the past");
     }
 
     [Fact]
