@@ -33,7 +33,8 @@ public class UserRepository : IUserRepository
 
     public async Task<User> CreateAsync(User user)
     {
-        user.Id = Guid.NewGuid();
+        // A caller that must retry safely (registration) fixes the id beforehand.
+        if (user.Id == Guid.Empty) user.Id = Guid.NewGuid();
         user.CreatedAt = DateTime.UtcNow;
         _context.Users.Add(user);
         await _context.SaveChangesAsync();

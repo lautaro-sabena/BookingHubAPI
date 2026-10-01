@@ -48,7 +48,8 @@ public class CompanyRepository : ICompanyRepository
 
     public async Task<Company> CreateAsync(Company company)
     {
-        company.Id = Guid.NewGuid();
+        // A caller that must retry safely (registration) fixes the id beforehand.
+        if (company.Id == Guid.Empty) company.Id = Guid.NewGuid();
         company.CreatedAt = DateTime.UtcNow;
         _context.Companies.Add(company);
         await _context.SaveChangesAsync();

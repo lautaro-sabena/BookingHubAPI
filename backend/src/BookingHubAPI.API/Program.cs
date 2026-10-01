@@ -112,6 +112,16 @@ builder.Services.AddHealthChecks()
 
 var app = builder.Build();
 
+// Fail fast on an unmigrated database instead of serving 500s. Default: on outside Development.
+var failOnPendingMigrations = app.Configuration.GetValue("Database:FailOnPendingMigrations", !app.Environment.IsDevelopment());
+using (var scope = app.Services.CreateScope())
+{
+    await DatabaseSchemaCheck.EnsureUpToDateAsync(
+        scope.ServiceProvider.GetRequiredService<BookingDbContext>(),
+        app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("BookingHubAPI.Startup"),
+        failOnPendingMigrations);
+}
+
 // Must run before anything that reads RemoteIpAddress (rate limiting, CORS, auth/audit code).
 app.UseForwardedHeaders();
 

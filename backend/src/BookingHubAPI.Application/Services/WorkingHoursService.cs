@@ -60,6 +60,8 @@ public class WorkingHoursService : IWorkingHoursService
         }
 
         // Delete-then-insert is atomic: a failure keeps the previous schedule instead of leaving the company without one.
+        // It is also idempotent (re-running it leaves the same schedule), so a retry after an ambiguous commit is safe
+        // without a verification callback.
         await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             await _workingHoursRepository.DeleteByCompanyIdAsync(companyId.Value);

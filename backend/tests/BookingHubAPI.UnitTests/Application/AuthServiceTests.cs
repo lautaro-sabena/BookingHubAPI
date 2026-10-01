@@ -26,13 +26,13 @@ public class AuthServiceTests
         _jwt.Setup(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()))
             .Returns("token");
         _users.Setup(u => u.CreateAsync(It.IsAny<User>()))
-            .ReturnsAsync((User u) => { u.Id = Guid.NewGuid(); return u; });
+            .ReturnsAsync((User u) => { if (u.Id == Guid.Empty) u.Id = Guid.NewGuid(); return u; });
         _users.Setup(u => u.UpdateAsync(It.IsAny<User>())).ReturnsAsync((User u) => u);
         _companies.Setup(c => c.CreateAsync(It.IsAny<Company>()))
-            .ReturnsAsync((Company c) => { c.Id = Guid.NewGuid(); return c; });
+            .ReturnsAsync((Company c) => { if (c.Id == Guid.Empty) c.Id = Guid.NewGuid(); return c; });
 
-        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
-            .Returns((Func<Task> work) => work());
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<Func<Task<bool>>>()))
+            .Returns((Func<Task> work, Func<Task<bool>> _) => work());
 
         _sut = new AuthService(_users.Object, _companies.Object, _hasher.Object, _jwt.Object, _unitOfWork.Object);
     }
@@ -132,24 +132,67 @@ public class AuthServiceTests
     {
         var insideTransaction = false;
         var writesInside = new List<string>();
-        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
-            .Returns(async (Func<Task> work) =>
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<Func<Task<bool>>>()))
+            .Returns(async (Func<Task> work, Func<Task<bool>> _) =>
             {
                 insideTransaction = true;
                 await work();
                 insideTransaction = false;
             });
         _users.Setup(u => u.CreateAsync(It.IsAny<User>()))
-            .ReturnsAsync((User u) => { writesInside.Add(insideTransaction ? "user" : "user-outside"); u.Id = Guid.NewGuid(); return u; });
+            .ReturnsAsync((User u) => { writesInside.Add(insideTransaction ? "user" : "user-outside"); return u; });
         _companies.Setup(c => c.CreateAsync(It.IsAny<Company>()))
-            .ReturnsAsync((Company c) => { writesInside.Add(insideTransaction ? "company" : "company-outside"); c.Id = Guid.NewGuid(); return c; });
+            .ReturnsAsync((Company c) => { writesInside.Add(insideTransaction ? "company" : "company-outside"); return c; });
         _users.Setup(u => u.UpdateAsync(It.IsAny<User>()))
             .ReturnsAsync((User u) => { writesInside.Add(insideTransaction ? "link" : "link-outside"); return u; });
 
         await _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
 
         writesInside.Should().Equal("user", "company", "link");
-        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()), Times.Once);
+        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<Func<Task<bool>>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Register_Owner_ShouldPassAVerifyCallbackThatChecksTheFixedUserId()
+    {
+        Func<Task<bool>>? verify = null;
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<Func<Task<bool>>>()))
+            .Returns((Func<Task> work, Func<Task<bool>> v) => { verify = v; return work(); });
+
+        var result = await _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
+
+        verify.Should().NotBeNull();
+        _users.Setup(u => u.GetByIdAsync(result.Value.UserId)).ReturnsAsync((User?)null);
+        (await verify!()).Should().BeFalse();
+        _users.Setup(u => u.GetByIdAsync(result.Value.UserId)).ReturnsAsync(new User { Id = result.Value.UserId });
+        (await verify()).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Register_Owner_WhenTheTransactionIsRetried_ShouldReuseTheSameIds()
+    {
+        var usersCreated = new List<User>();
+        var companiesCreated = new List<Company>();
+        _users.Setup(u => u.CreateAsync(It.IsAny<User>()))
+            .ReturnsAsync((User u) => { usersCreated.Add(u); return u; });
+        _companies.Setup(c => c.CreateAsync(It.IsAny<Company>()))
+            .ReturnsAsync((Company c) => { companiesCreated.Add(c); return c; });
+        // Simulates an ambiguous failure: the first run "commits" but the connection drops, the retry runs again.
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<Func<Task<bool>>>()))
+            .Returns(async (Func<Task> work, Func<Task<bool>> _) =>
+            {
+                await work();
+                await work();
+            });
+
+        var result = await _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
+
+        usersCreated.Should().HaveCount(2);
+        usersCreated.Select(u => u.Id).Distinct().Should().ContainSingle().Which.Should().NotBe(Guid.Empty);
+        companiesCreated.Select(c => c.Id).Distinct().Should().ContainSingle().Which.Should().NotBe(Guid.Empty);
+        usersCreated.Should().OnlyHaveUniqueItems(); // fresh entities per attempt, same ids
+        result.Value.UserId.Should().Be(usersCreated[0].Id);
+        _jwt.Verify(j => j.GenerateToken(result.Value.UserId, "o@test.com", "Owner", companiesCreated[0].Id), Times.Once);
     }
 
     [Fact]
@@ -171,7 +214,7 @@ public class AuthServiceTests
 
         await _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
 
-        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()), Times.Never);
+        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>(), It.IsAny<Func<Task<bool>>>()), Times.Never);
     }
 
     private static bool Capture(Company company, out Company? captured)
