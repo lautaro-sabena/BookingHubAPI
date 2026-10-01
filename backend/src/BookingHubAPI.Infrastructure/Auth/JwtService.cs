@@ -40,7 +40,7 @@ public class JwtService : IJwtService
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, email),
@@ -51,7 +51,7 @@ public class JwtService : IJwtService
 
         if (companyId.HasValue)
         {
-            claims.Append(new Claim("companyId", companyId.Value.ToString()));
+            claims.Add(new Claim("companyId", companyId.Value.ToString()));
         }
 
         var token = new JwtSecurityToken(

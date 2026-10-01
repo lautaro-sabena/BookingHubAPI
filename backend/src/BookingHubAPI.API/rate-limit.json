@@ -2,12 +2,12 @@
   "IpRateLimiting": {
     "EnableEndpointRateLimiting": true,
     "StackBlockedRequests": false,
-    "GeneralRule": {
-      "Endpoint": "*",
-      "Period": "1m",
-      "Limit": 60
-    },
-    "Rules": [
+    "GeneralRules": [
+      {
+        "Endpoint": "*",
+        "Period": "1m",
+        "Limit": 60
+      },
       {
         "Endpoint": "POST:/api/auth/login",
         "Period": "5m",

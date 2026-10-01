@@ -29,21 +29,22 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 
 ## Delivery
 - Strategy: `ask-on-risk` (default). Forecast exceeds ~400 lines → chain strategy: `stacked-to-main` (user choice, 2026-09-26).
-- Slices: PR1 = T1 + T1b (hygiene + test harness).
+- Slices: PR1 = T1 + T1b + T2 + T2b (hygiene, test harness, security fixes).
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks
 - [x] T1 — Untrack `bin/`/`obj/` (git rm --cached), verify `.gitignore`. Route: inline (mechanical). Evidence: 1110 files untracked; tracked bin/obj count = 0; `dotnet build` 0 errors; build no longer dirties status.
-- [x] T1b — Fix integration test harness: test factory registers EF InMemory alongside Npgsql (6/7 integration tests fail on base: "Only a single database provider"). Route: inline (3 small test files). Root cause: EF Core 9 keeps provider config in `IDbContextOptionsConfiguration<T>`; also `Guid.NewGuid()` inside the options lambda gave every DbContext its own DB. Fix: reusable `BookingApiFactory`; removed placeholder `UnitTest1.cs`. Evidence: `dotnet test backend/BookingHubAPI.sln` → UnitTests 31/31, IntegrationTests 6/6.
-- [ ] T2 — Security bug fixes: JWT `companyId` claim (JwtService), load rate-limit rules into configuration, CORS in ErrorHandlingMiddleware uses configured whitelist, stop leaking raw exception messages. Tests for each. Route: delegated writer (3+ non-trivial files).
-- [ ] T3 — Secrets & config: remove hardcoded secrets from `appsettings.Development.json`/compose, use user-secrets/env vars, fix SQL Server vs Postgres connection-string mismatch, update `.env.example`/README. Route: delegated writer.
+- [x] T1b — Fix integration test harness: test factory registers EF InMemory alongside Npgsql (6/7 integration tests fail on base: "Only a single database provider"). Route: inline (3 small test files). Commit 64751e6; review assess: medium, 80 lines, under_budget (pending in slice). Root cause: EF Core 9 keeps provider config in `IDbContextOptionsConfiguration<T>`; also `Guid.NewGuid()` inside the options lambda gave every DbContext its own DB. Fix: reusable `BookingApiFactory`; removed placeholder `UnitTest1.cs`. Evidence: `dotnet test backend/BookingHubAPI.sln` → UnitTests 31/31, IntegrationTests 6/6.
+- [x] T2 — Security bug fixes: JWT `companyId` claim (JwtService), load rate-limit rules into configuration, CORS in ErrorHandlingMiddleware uses configured whitelist. Tests for each. (Exception-message exposure moved to T7: controllers likely rely on user-facing messages.) Route: delegated writer (3+ non-trivial files). Evidence: build 0 errors; UnitTests 33/33, IntegrationTests 10/10. Extra finding: rate-limit.json used `GeneralRule`/`Rules` keys that AspNetCoreRateLimit never binds (fixed to `GeneralRules`). Test factory relaxes limits by default (`RelaxRateLimiting`).
+- [ ] T2b — Rate-limit follow-ups from review (lineage review-ff7be9de3820308c, advisory): (a) R4-002 limiter keys on connection IP; behind Render proxy all users share one counter → configure ForwardedHeaders/RealIpHeader (X-Forwarded-For) with trusted proxies; exclude /health from limits. (b) R3-001/R4-001 rate-limit.json added after env vars overrides them and optional:false fails startup outside content root → move rules into appsettings.json (or insert source before env vars). (c) R3-002 test real login throttle (6th login → 429). (d) test nits: R2-ratelimit-magic-count, R2-cors-origin-fallback, R2-relax-doc-overstates. Route: delegated writer.
+- [ ] T3 — Secrets & config: remove hardcoded secrets from `appsettings.Development.json`/compose, use user-secrets/env vars, fix SQL Server vs Postgres connection-string mismatch, update `.env.example`/README. Also: `appsettings.Development.json` `Cors:AllowedOrigins` is a comma string vs array in appsettings.json, so only localhost:3000 binds. Route: delegated writer.
 - [ ] T4 — Auth plumbing reuse: `ClaimsPrincipal` extensions (`GetUserId`, `GetCompanyId`), role constants instead of magic strings, remove 5x duplicated `GetUserId()`. Route: delegated writer.
 - [ ] T5 — Application layer: use-case services for Reservations (conflict detection, status transitions, ownership), FluentValidation validators, Result pattern; thin controller. Tests for conflict + IDOR paths. Route: delegated writer.
 - [ ] T6 — Application layer: same for Services, Companies, WorkingHours, Favorites, Auth. Route: delegated writer (may split).
-- [ ] T7 — Consistent error handling: ProblemDetails, Result→HTTP mapping, domain exceptions. Route: delegated writer.
+- [ ] T7 — Consistent error handling: ProblemDetails, Result→HTTP mapping, domain exceptions; stop exposing raw ArgumentException/InvalidOperationException messages. Route: delegated writer.
 - [ ] T8 — Domain enrichment: invariants/behavior on entities (Reservation status transitions, etc.). Route: delegated writer.
 - [ ] T9 — Database: replace `EnsureCreated()` with migrations, reconcile migration with model. Route: delegated writer.
-- [ ] T10 — Remove dead scaffolding (empty folders, `UnitTest1.cs`), README cleanup (openspec refs), move Postman collection to `docs/`. Route: inline.
+- [ ] T10 — Remove dead scaffolding (empty folders; `UnitTest1.cs` already removed in T1b), README cleanup (openspec refs), move Postman collection to `docs/`. Route: inline.
 - [ ] T11 — Frontend: extract data/form hooks and reusable components from the large calendar/booking pages; shared calendar logic between owner/customer. Route: delegated writer.
 - [ ] T12 — Frontend auth hardening: stop storing JWT in `localStorage` (httpOnly cookie, backend support). Route: delegated writer. Needs user confirmation (cross-cutting behavior change).
 
@@ -59,6 +60,7 @@ controllers, an empty Application layer, and thin tests around the risky paths.
 - Local: `.atl/` and `entrevista-repaso.md` added to `.git/info/exclude` (local-only, not committed).
 
 - Review boundary advanced to 9af03f0 by user decision (T1 not natively reviewable: budget exceeded).
+- T2 commit 0770bf6. Slice 9af03f0..0770bf6 (T1b+T2, 381 lines) assessed high (auth hot path); user granted; 4-lens review approved, acknowledged (authority burned). Review boundary → 0770bf6. 8 advisory findings → T2b.
 
 ## Next step
-T2 (security bug fixes).
+T2b (rate-limit follow-ups, proxy real IP is a production risk), then T3.
