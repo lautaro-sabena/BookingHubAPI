@@ -3,13 +3,13 @@ using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using BookingHubAPI.API.Extensions;
 
 namespace BookingHubAPI.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Customer")]
+[Authorize(Roles = RoleNames.Customer)]
 public class FavoritesController : ControllerBase
 {
     private readonly IFavoriteRepository _favoriteRepository;
@@ -26,7 +26,7 @@ public class FavoritesController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<FavoriteDto>>> GetFavorites()
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var favorites = await _favoriteRepository.GetByCustomerIdAsync(userId);
         var favoriteDtos = favorites.Select(f => f.ToDto());
         return Ok(favoriteDtos);
@@ -35,7 +35,7 @@ public class FavoritesController : ControllerBase
     [HttpPost("{serviceId}")]
     public async Task<ActionResult<FavoriteDto>> AddFavorite(Guid serviceId)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
 
         // Check if service exists
         var service = await _serviceRepository.GetByIdWithCompanyAsync(serviceId);
@@ -77,7 +77,7 @@ public class FavoritesController : ControllerBase
     [HttpDelete("{serviceId}")]
     public async Task<IActionResult> RemoveFavorite(Guid serviceId)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var removed = await _favoriteRepository.RemoveAsync(userId, serviceId);
         
         if (!removed)
@@ -91,14 +91,8 @@ public class FavoritesController : ControllerBase
     [HttpGet("{serviceId}/check")]
     public async Task<ActionResult<bool>> CheckFavorite(Guid serviceId)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var exists = await _favoriteRepository.ExistsAsync(userId, serviceId);
         return Ok(exists);
-    }
-
-    private Guid GetUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim!);
     }
 }

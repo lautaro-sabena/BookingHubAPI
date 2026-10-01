@@ -2,7 +2,7 @@ using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+using BookingHubAPI.API.Extensions;
 
 namespace BookingHubAPI.API.Controllers;
 
@@ -23,7 +23,7 @@ public class CompaniesController : ControllerBase
     [HttpGet("me")]
     public async Task<ActionResult<CompanyResponse>> GetMyCompany()
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -49,7 +49,7 @@ public class CompaniesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CompanyResponse>> CreateCompany([FromBody] CompanyRequest request)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var user = await _userRepository.GetByIdAsync(userId);
 
         if (user == null)
@@ -93,7 +93,7 @@ public class CompaniesController : ControllerBase
     [HttpPut("me")]
     public async Task<ActionResult<CompanyResponse>> UpdateMyCompany([FromBody] CompanyUpdateRequest request)
     {
-        var userId = GetUserId();
+        var userId = User.GetUserId();
         var company = await _companyRepository.GetByOwnerIdAsync(userId);
 
         if (company == null)
@@ -125,11 +125,5 @@ public class CompaniesController : ControllerBase
             updatedCompany.TimeZone,
             updatedCompany.IsActive,
             updatedCompany.OwnerId));
-    }
-
-    private Guid GetUserId()
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        return Guid.Parse(userIdClaim!);
     }
 }
