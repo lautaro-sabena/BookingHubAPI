@@ -44,15 +44,39 @@ public static class TestApi
         return new TestUser(client, token.UserId, token.Email, token.Role, token.Token);
     }
 
-    /// <summary>Creates an active service through POST /api/services as the given owner.</summary>
-    public static async Task<ServiceResponse> CreateServiceAsync(TestUser owner, int durationMinutes = 60)
+    /// <summary>
+    /// Creates an active service through POST /api/services as the given owner. By default the owner's
+    /// company is opened every day of the week from <see cref="OpeningHour"/> to <see cref="ClosingHour"/>,
+    /// because bookings are only accepted inside working hours; pass <paramref name="openAllWeek"/> false
+    /// to leave the schedule untouched.
+    /// </summary>
+    public static async Task<ServiceResponse> CreateServiceAsync(
+        TestUser owner, int durationMinutes = 60, bool openAllWeek = true)
     {
+        if (openAllWeek)
+        {
+            await SetWorkingHoursAsync(
+                owner,
+                Enum.GetValues<DayOfWeek>().Select(day => Hours(day, OpeningHour, ClosingHour)).ToArray());
+        }
+
         var response = await owner.Client.PostAsJsonAsync(
             "/api/services",
             new ServiceRequest($"Service {Guid.NewGuid():N}", "Test service", durationMinutes, 10m));
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         return (await response.Content.ReadFromJsonAsync<ServiceResponse>())!;
     }
+
+    /// <summary>Replaces the owner's weekly schedule through PUT /api/workinghours.</summary>
+    public static async Task SetWorkingHoursAsync(TestUser owner, params WorkingHoursRequest[] days)
+    {
+        var response = await owner.Client.PutAsJsonAsync("/api/workinghours", days.ToList());
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    /// <summary>One schedule entry on whole hours.</summary>
+    public static WorkingHoursRequest Hours(DayOfWeek day, int startHour, int endHour, bool isActive = true) =>
+        new(day, new TimeSpan(startHour, 0, 0), new TimeSpan(endHour, 0, 0), isActive);
 
     /// <summary>Marks a company inactive; no endpoint exposes this state.</summary>
     public static async Task DeactivateCompanyAsync(BookingApiFactory factory, Guid companyId)
@@ -91,7 +115,15 @@ public static class TestApi
         await db.SaveChangesAsync();
     }
 
-    /// <summary>A start time comfortably in the future, on a whole hour, offset by whole days.</summary>
+    /// <summary>Opening and closing hour of the schedule <see cref="CreateServiceAsync"/> gives every company.</summary>
+    public const int OpeningHour = 9;
+
+    public const int ClosingHour = 17;
+
+    /// <summary>
+    /// A start time comfortably in the future, on a whole hour, offset by whole days. The default hour
+    /// lies inside the default 09:00-17:00 schedule (any weekday), so bookings made with it are accepted.
+    /// </summary>
     public static DateTime FutureSlot(int daysAhead = 30, int hour = 10) =>
         DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(daysAhead).AddHours(hour), DateTimeKind.Utc);
 }
