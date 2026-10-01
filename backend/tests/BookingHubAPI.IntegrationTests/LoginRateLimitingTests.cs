@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AspNetCoreRateLimit;
 using BookingHubAPI.Application.DTOs;
+using BookingHubAPI.IntegrationTests.Support;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -41,7 +42,8 @@ public class LoginRateLimitingTests
         }
 
         var throttledResponse = await client.PostAsJsonAsync("/api/auth/login", loginRequest);
-        throttledResponse.StatusCode.Should().Be((HttpStatusCode)429,
+        await throttledResponse.ShouldBeProblemAsync((HttpStatusCode)429);
+        throttledResponse.Headers.RetryAfter.Should().NotBeNull(
             $"the ({loginLimit} + 1)th login attempt within the period must be throttled");
     }
 

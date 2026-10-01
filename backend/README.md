@@ -322,7 +322,7 @@ dotnet test --filter "FullyQualifiedName~UnitTests"
 
 ## Respuestas de error
 
-Todos los errores (400, 401, 403, 404, 409, 500) usan RFC 7807 (`application/problem+json`):
+Todos los errores (400, 401, 403, 404, 409, 429, 500) usan RFC 7807 (`application/problem+json`):
 
 ```json
 {
@@ -336,6 +336,7 @@ Todos los errores (400, 401, 403, 404, 409, 500) usan RFC 7807 (`application/pro
 
 - `detail` lleva el mensaje para el usuario; los errores de validación del modelo añaden `errors` (campo → mensajes).
 - Un token sin un id de usuario válido responde 401. Las excepciones no controladas responden 500 con un `detail` genérico; el mensaje y el stack solo se registran en logs.
+- El rate limit responde 429 con el mismo formato (`ProblemDetailsRateLimitMiddleware`, sobre `IpRateLimitMiddleware`): `title`, `detail` ("Too many requests. Retry after N seconds."), `traceId` y la cabecera `Retry-After`; las cabeceras de seguridad y CORS se aplican igual.
 - La paginación (`page` 1–1000000, `pageSize` 1–100) se valida en `/api/services`, `/api/services/all` y `/api/reservations`; fuera de rango devuelve 400 con `errors`.
 - El frontend lee el mensaje con `getApiErrorMessage` (`frontend/src/lib/apiError.ts`).
 

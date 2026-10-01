@@ -152,7 +152,8 @@ app.UseRouting();
 
 // HTTPS redirection is handled by Render's proxy
 
-app.UseIpRateLimiting();
+// Same as UseIpRateLimiting(), but a throttled request gets a problem+json 429.
+app.UseMiddleware<ProblemDetailsRateLimitMiddleware>();
 
 // After routing (reads endpoint metadata), before the cookie is turned into an identity.
 app.UseMiddleware<CsrfHeaderMiddleware>();
