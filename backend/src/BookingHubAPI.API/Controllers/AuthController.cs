@@ -1,3 +1,4 @@
+using BookingHubAPI.Application.Abstractions;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;

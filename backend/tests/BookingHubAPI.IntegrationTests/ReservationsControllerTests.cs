@@ -353,10 +353,9 @@ public class ReservationsControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
-    public async Task Create_AsOwner_ShouldSucceedEvenOnOwnService()
+    public async Task Create_AsOwner_ShouldSucceedOnOwnService()
     {
-        // CURRENT BEHAVIOR (bug): there is no role restriction on booking, so an owner can
-        // reserve a slot on their own company's service like any customer.
+        // Intended: owners may book on their own services (e.g. entering phone bookings for customers).
         var owner = await TestApi.RegisterOwnerAsync(_factory);
         var service = await TestApi.CreateServiceAsync(owner);
 

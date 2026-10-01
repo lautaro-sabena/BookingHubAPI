@@ -1,14 +1,7 @@
+using BookingHubAPI.Application.Abstractions;
 using Microsoft.Extensions.Logging;
 
 namespace BookingHubAPI.Infrastructure.Services;
-
-public interface INotificationService
-{
-    Task SendEmailAsync(string to, string subject, string body);
-    Task SendReservationCreatedAsync(Guid reservationId, string customerEmail, string companyName);
-    Task SendReservationConfirmedAsync(Guid reservationId, string customerEmail);
-    Task SendReservationCancelledAsync(Guid reservationId, string customerEmail, string reason);
-}
 
 public class NotificationService : INotificationService
 {
