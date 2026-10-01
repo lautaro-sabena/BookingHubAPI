@@ -31,6 +31,21 @@ public class StartupConfigurationValidatorTests
             .Which.Message.Should().Contain(StartupConfigurationValidator.MinimumJwtSecretKeyLength.ToString());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RequireJwtSecretKey_WhenWhitespace_ShouldThrowWithActionableMessage(string whitespaceValue)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:SecretKey"] = whitespaceValue })
+            .Build();
+
+        var act = () => StartupConfigurationValidator.RequireJwtSecretKey(configuration);
+
+        act.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("Jwt:SecretKey").And.Contain("user-secrets set");
+    }
+
     [Fact]
     public void RequireJwtSecretKey_WhenValid_ShouldReturnIt()
     {
@@ -46,6 +61,21 @@ public class StartupConfigurationValidatorTests
     public void RequireConnectionString_WhenMissing_ShouldThrowWithActionableMessage()
     {
         var configuration = new ConfigurationBuilder().Build();
+
+        var act = () => StartupConfigurationValidator.RequireConnectionString(configuration);
+
+        act.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("ConnectionStrings:DefaultConnection").And.Contain("user-secrets set");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void RequireConnectionString_WhenWhitespace_ShouldThrowWithActionableMessage(string whitespaceValue)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:DefaultConnection"] = whitespaceValue })
+            .Build();
 
         var act = () => StartupConfigurationValidator.RequireConnectionString(configuration);
 

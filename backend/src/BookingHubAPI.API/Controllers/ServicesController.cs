@@ -1,4 +1,3 @@
-using AutoMapper;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;
@@ -17,18 +16,15 @@ public class ServicesController : ControllerBase
     private readonly IServiceRepository _serviceRepository;
     private readonly ICompanyRepository _companyRepository;
     private readonly IUserRepository _userRepository;
-    private readonly IMapper _mapper;
 
     public ServicesController(
         IServiceRepository serviceRepository,
         ICompanyRepository companyRepository,
-        IUserRepository userRepository,
-        IMapper mapper)
+        IUserRepository userRepository)
     {
         _serviceRepository = serviceRepository;
         _companyRepository = companyRepository;
         _userRepository = userRepository;
-        _mapper = mapper;
     }
 
     [HttpGet]

@@ -1,4 +1,3 @@
-using AutoMapper;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Entities;
 using BookingHubAPI.Domain.Interfaces;
@@ -19,22 +18,19 @@ public class ReservationsController : ControllerBase
     private readonly ICompanyRepository _companyRepository;
     private readonly IUserRepository _userRepository;
     private readonly INotificationService _notificationService;
-    private readonly IMapper _mapper;
 
     public ReservationsController(
         IReservationRepository reservationRepository,
         IServiceRepository serviceRepository,
         ICompanyRepository companyRepository,
         IUserRepository userRepository,
-        INotificationService notificationService,
-        IMapper mapper)
+        INotificationService notificationService)
     {
         _reservationRepository = reservationRepository;
         _serviceRepository = serviceRepository;
         _companyRepository = companyRepository;
         _userRepository = userRepository;
         _notificationService = notificationService;
-        _mapper = mapper;
     }
 
     [HttpGet]

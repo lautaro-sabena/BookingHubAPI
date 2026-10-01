@@ -34,8 +34,8 @@ public class CorsConfigurationTests : IClassFixture<BookingApiFactory>
             var response = await client.SendAsync(request);
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-            response.Headers.GetValues("Access-Control-Allow-Origin").Should().ContainSingle(origin,
-                $"{origin} is one of two origins configured as an array in appsettings.Development.json");
+            response.Headers.GetValues("Access-Control-Allow-Origin").Should().ContainSingle()
+                .Which.Should().Be(origin, $"{origin} is one of two origins configured as an array in appsettings.Development.json");
         }
     }
 }

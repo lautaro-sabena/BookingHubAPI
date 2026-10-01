@@ -13,7 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using AutoMapper;
 using AspNetCoreRateLimit;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -40,8 +39,6 @@ builder.Services.AddScoped<IWorkingHoursRepository, WorkingHoursRepository>();
 builder.Services.AddScoped<IFavoriteRepository, FavoriteRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-
-builder.Services.AddAutoMapper(typeof(Program));
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
@@ -96,9 +93,6 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        // Supports both an indexed array (appsettings.json, or Cors__AllowedOrigins__0/__1/...
-        // env vars) and a single flat scalar value carrying a comma-separated list (e.g. one
-        // Cors__AllowedOrigins env var, as used by Render and docker-compose).
         policy.WithOrigins(CorsOriginsResolver.Resolve(builder.Configuration))
               .AllowAnyHeader()
               .AllowAnyMethod();

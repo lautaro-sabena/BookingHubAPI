@@ -25,7 +25,6 @@ backend/
 - **JWT** - Autenticación
 - **FluentValidation** - Validación
 - **AspNetCoreRateLimit** - Rate limiting
-- **AutoMapper** - Mapeo de objetos
 
 ## Configuración
 
@@ -38,18 +37,20 @@ backend/
 | `Jwt__Issuer` | Token issuer (default: `BookingHubAPI`) | `BookingHubAPI` |
 | `Jwt__Audience` | Token audience (default: `BookingHubAPI`) | `BookingHubAPI` |
 | `Jwt__ExpirationMinutes` | Token expiration in minutes (default: 60) | `60` |
-| `Cors__AllowedOrigins` | Allowed origin (one per variable; see note below) | `https://yourdomain.com` |
+| `Cors__AllowedOrigins` | Allowed origins: a comma-separated list in a single variable, or an indexed array (`Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ...) | `https://yourdomain.com,https://admin.yourdomain.com` |
 
-CORS also accepts a comma-separated list in a single variable
-(`Cors__AllowedOrigins=https://a.com,https://b.com`), or an indexed array
-(`Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, ...) - see `Program.cs`
-(`CorsOriginsResolver`).
+Both forms are resolved by
+`backend/src/BookingHubAPI.API/Configuration/CorsOriginsResolver.cs`. When both are present at
+once (e.g. an appsettings*.json array layered under a flat `Cors__AllowedOrigins` environment
+variable, as docker-compose and Render do), the flat scalar wins over the JSON array - an
+explicitly set environment value always takes precedence.
 
 ### Development secrets (user-secrets)
 
-`appsettings.Development.json` no longer contains `Jwt:SecretKey` or a database password -
-both are required, and the app fails fast at startup with an explicit message naming the
-missing key if either is absent. Configure them locally with
+`appsettings.Development.json` no longer contains `Jwt:SecretKey` or a connection string -
+both are required, and the app fails fast at startup (rejecting a missing, empty, or
+whitespace-only value) with an explicit message naming the missing key. Configure them locally
+with
 [.NET user-secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets)
 (loaded automatically when `ASPNETCORE_ENVIRONMENT=Development`), run from
 `backend/src/BookingHubAPI.API`:
@@ -81,7 +82,7 @@ reused in any real environment.
     "ExpirationMinutes": 60
   },
   "Cors": {
-    "AllowedOrigins": ["https://tudominio.com"]
+    "AllowedOrigins": ["https://yourdomain.com"]
   }
 }
 ```

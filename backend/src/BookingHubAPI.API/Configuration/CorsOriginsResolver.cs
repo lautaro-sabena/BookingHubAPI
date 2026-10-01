@@ -13,16 +13,15 @@ public static class CorsOriginsResolver
 {
     public static string[] Resolve(IConfiguration configuration)
     {
-        var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        var section = configuration.GetSection("Cors:AllowedOrigins");
 
-        if (origins != null && origins.Length > 0)
+        // A scalar set on the key itself (e.g. the Cors__AllowedOrigins env var) must override
+        // array entries from appsettings*.json, which stay visible as indexed children.
+        if (!string.IsNullOrWhiteSpace(section.Value))
         {
-            return origins;
+            return section.Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
-        var singleValue = configuration["Cors:AllowedOrigins"];
-        return string.IsNullOrEmpty(singleValue)
-            ? Array.Empty<string>()
-            : singleValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return section.Get<string[]>() ?? Array.Empty<string>();
     }
 }
