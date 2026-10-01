@@ -1,6 +1,8 @@
 namespace BookingHubAPI.Application.DTOs;
 
-public record AvailableSlotResponse(DateTime StartTime, DateTime EndTime, bool IsAvailable);
+/// <param name="StartTime">In the company's local time, with that zone's offset at that moment.</param>
+/// <param name="EndTime">In the company's local time, with that zone's offset at that moment.</param>
+public record AvailableSlotResponse(DateTimeOffset StartTime, DateTimeOffset EndTime, bool IsAvailable);
 
 public record AvailabilityQueryRequest(Guid ServiceId, DateTime Date);
 

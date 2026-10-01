@@ -1,5 +1,6 @@
 using AspNetCoreRateLimit;
 using BookingHubAPI.Infrastructure.Data;
+using BookingHubAPI.IntegrationTests.Support;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,9 @@ public class BookingApiFactory : WebApplicationFactory<Program>
     /// </summary>
     protected virtual bool RelaxRateLimiting => true;
 
+    /// <summary>The clock the API sees; real time unless a test pins it.</summary>
+    public SettableTimeProvider Clock { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
@@ -56,6 +60,9 @@ public class BookingApiFactory : WebApplicationFactory<Program>
 
             services.AddDbContext<BookingDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
+
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Clock);
 
             if (RelaxRateLimiting)
             {

@@ -14,7 +14,7 @@ public class ReservationRequestValidator : AbstractValidator<ReservationRequest>
     public ReservationRequestValidator(TimeProvider timeProvider)
     {
         RuleFor(r => r.StartTime)
-            .Must(startTime => startTime >= timeProvider.GetUtcNow().UtcDateTime)
+            .Must(startTime => startTime >= timeProvider.GetUtcNow())
             .WithMessage(PastBookingMessage);
     }
 }

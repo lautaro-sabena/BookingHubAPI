@@ -10,15 +10,18 @@ public class AvailabilityService : IAvailabilityService
     private readonly IServiceRepository _serviceRepository;
     private readonly ICompanyRepository _companyRepository;
     private readonly IReservationRepository _reservationRepository;
+    private readonly TimeProvider _timeProvider;
 
     public AvailabilityService(
         IServiceRepository serviceRepository,
         ICompanyRepository companyRepository,
-        IReservationRepository reservationRepository)
+        IReservationRepository reservationRepository,
+        TimeProvider timeProvider)
     {
         _serviceRepository = serviceRepository;
         _companyRepository = companyRepository;
         _reservationRepository = reservationRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<IReadOnlyList<AvailableSlotResponse>>> GetAvailableSlotsAsync(Guid serviceId, DateTime date)
@@ -35,22 +38,34 @@ public class AvailabilityService : IAvailabilityService
             return Error.NotFound("Company not found or inactive");
         }
 
+        // Only the calendar day of `date` matters: it is a day in the company's time zone.
+        var day = DateOnly.FromDateTime(date);
+        var zone = BookingSchedule.ResolveTimeZone(company.TimeZone);
         var slots = new List<AvailableSlotResponse>();
-        var hours = BookingSchedule.FindActiveHours(company.WorkingHours, date.DayOfWeek);
+        var hours = BookingSchedule.FindActiveHours(company.WorkingHours, day.DayOfWeek);
         var duration = TimeSpan.FromMinutes(service.DurationMinutes);
         if (hours == null || duration <= TimeSpan.Zero)
         {
             return slots;
         }
 
-        var (open, close) = BookingSchedule.WindowOn(hours, date);
+        var (open, close) = BookingSchedule.WindowOn(hours, day, zone);
+        var now = _timeProvider.GetUtcNow();
 
         for (var slotStart = open; slotStart + duration <= close; slotStart += duration)
         {
-            var slotEnd = slotStart + duration;
-            if (!await _reservationRepository.HasConflictAsync(service.CompanyId, serviceId, slotStart, slotEnd))
+            // Same boundary as the booking rule: a slot starting exactly now can still be booked.
+            if (slotStart < now)
             {
-                slots.Add(new AvailableSlotResponse(slotStart, slotEnd, true));
+                continue;
+            }
+
+            var slotEnd = slotStart + duration;
+            if (!await _reservationRepository.HasConflictAsync(
+                    service.CompanyId, serviceId, slotStart.UtcDateTime, slotEnd.UtcDateTime))
+            {
+                slots.Add(new AvailableSlotResponse(
+                    TimeZoneInfo.ConvertTime(slotStart, zone), TimeZoneInfo.ConvertTime(slotEnd, zone), true));
             }
         }
 
