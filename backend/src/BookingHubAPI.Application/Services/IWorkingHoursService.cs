@@ -9,6 +9,9 @@ public interface IWorkingHoursService
     /// <summary>Returns the schedule as one entry per weekday; unconfigured days are inactive with the default window.</summary>
     Task<Result<IReadOnlyList<WorkingHoursResponse>>> GetWorkingHoursAsync(Guid userId);
 
-    /// <summary>Replaces the company's schedule with the active entries of the request.</summary>
-    Task<Result> ReplaceWorkingHoursAsync(Guid userId, IReadOnlyList<WorkingHoursRequest> requests);
+    /// <summary>
+    /// Replaces the company's schedule with the request (inactive days keep their times) and returns the saved
+    /// seven-day schedule. Rejects out-of-range or duplicate days and, for active days, start not before end.
+    /// </summary>
+    Task<Result<IReadOnlyList<WorkingHoursResponse>>> ReplaceWorkingHoursAsync(Guid userId, IReadOnlyList<WorkingHoursRequest> requests);
 }

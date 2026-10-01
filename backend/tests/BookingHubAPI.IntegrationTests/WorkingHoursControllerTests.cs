@@ -170,60 +170,55 @@ public class WorkingHoursControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
-    public async Task UpdateWorkingHours_WithInactiveDay_ShouldNotStoreItsTimes()
+    public async Task UpdateWorkingHours_WithInactiveDay_ShouldKeepItsCustomTimes()
     {
-        // CURRENT BEHAVIOR (bug): inactive entries are dropped instead of stored, so the custom
-        // times the owner sent for a disabled day are lost and GET reports the 09:00-17:00 defaults.
         var owner = await TestApi.RegisterOwnerAsync(_factory);
 
         await PutHoursOkAsync(owner, Day(DayOfWeek.Wednesday, 6, 7, isActive: false));
 
-        var wednesday = (await GetHoursAsync(owner))[(int)DayOfWeek.Wednesday];
-        wednesday.IsActive.Should().BeFalse();
-        wednesday.StartTime.Should().Be(DefaultStart);
-        wednesday.EndTime.Should().Be(DefaultEnd);
+        (await GetHoursAsync(owner))[(int)DayOfWeek.Wednesday].Should().Be(new WorkingHoursResponse(
+            DayOfWeek.Wednesday, new TimeSpan(6, 0, 0), new TimeSpan(7, 0, 0), false));
     }
 
     [Fact]
-    public async Task UpdateWorkingHours_ResponseBody_ShouldBeAWrappedEmptyObjectInsteadOfTheDayList()
+    public async Task UpdateWorkingHours_ResponseBody_ShouldBeTheSavedSevenDaySchedule()
     {
-        // CURRENT BEHAVIOR (bug): the controller returns Ok(await GetWorkingHours()), which nests the
-        // ActionResult<T> of the GET call inside the response instead of its value, so the body is
-        // {"result":{},"value":null} rather than the array of seven days the declared type suggests.
         var owner = await TestApi.RegisterOwnerAsync(_factory);
 
-        var response = await PutHoursAsync(owner, Day(DayOfWeek.Monday, 8, 12));
+        var response = await PutHoursAsync(owner, Day(DayOfWeek.Monday, 8, 12), Day(DayOfWeek.Wednesday, 6, 7, isActive: false));
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
-        body.ValueKind.Should().Be(JsonValueKind.Object);
-        body.GetProperty("result").ValueKind.Should().Be(JsonValueKind.Object);
-        body.GetProperty("value").ValueKind.Should().Be(JsonValueKind.Null);
-    }
-
-    [Fact]
-    public async Task UpdateWorkingHours_WithStartAfterEnd_ShouldStillStoreIt()
-    {
-        // CURRENT BEHAVIOR (bug): no validation of the time range, so an inverted window is accepted.
-        var owner = await TestApi.RegisterOwnerAsync(_factory);
-
-        await PutHoursOkAsync(owner, Day(DayOfWeek.Thursday, 18, 8));
-
-        (await GetHoursAsync(owner))[(int)DayOfWeek.Thursday].Should().Be(new WorkingHoursResponse(
-            DayOfWeek.Thursday, new TimeSpan(18, 0, 0), new TimeSpan(8, 0, 0), true));
-    }
-
-    [Fact]
-    public async Task UpdateWorkingHours_WithDuplicateDay_ShouldReportTheFirstEntry()
-    {
-        // CURRENT BEHAVIOR (bug): no check for duplicate days; both rows are stored and GET reads
-        // the times of whichever row comes first while IsActive is true if any row is active.
-        var owner = await TestApi.RegisterOwnerAsync(_factory);
-
-        await PutHoursOkAsync(owner, Day(DayOfWeek.Monday, 8, 12), Day(DayOfWeek.Monday, 14, 18));
-
-        (await GetHoursAsync(owner))[(int)DayOfWeek.Monday].Should().Be(new WorkingHoursResponse(
+        var body = (await response.Content.ReadFromJsonAsync<List<WorkingHoursResponse>>())!;
+        body.Should().Equal(await GetHoursAsync(owner));
+        body.Should().HaveCount(7);
+        body[(int)DayOfWeek.Monday].Should().Be(new WorkingHoursResponse(
             DayOfWeek.Monday, new TimeSpan(8, 0, 0), new TimeSpan(12, 0, 0), true));
+    }
+
+    [Theory]
+    [InlineData(18, 8)]
+    [InlineData(8, 8)]
+    public async Task UpdateWorkingHours_WithActiveDayStartingNotBeforeEnd_ShouldReturnBadRequest(int start, int end)
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        await PutHoursOkAsync(owner, Day(DayOfWeek.Monday, 8, 12));
+
+        var response = await PutHoursAsync(owner, Day(DayOfWeek.Thursday, start, end));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().Contain("Thursday");
+        (await GetHoursAsync(owner))[(int)DayOfWeek.Monday].IsActive.Should().BeTrue("a rejected request must not replace the schedule");
+    }
+
+    [Fact]
+    public async Task UpdateWorkingHours_WithDuplicateDay_ShouldReturnBadRequest()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+
+        var response = await PutHoursAsync(owner, Day(DayOfWeek.Monday, 8, 12), Day(DayOfWeek.Monday, 14, 18));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await GetHoursAsync(owner)).Should().OnlyContain(h => !h.IsActive);
     }
 
     [Fact]
@@ -255,7 +250,7 @@ public class WorkingHoursControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
-    public async Task UpdateWorkingHours_WithOutOfRangeDay_ShouldBeAcceptedButNeverReported()
+    public async Task UpdateWorkingHours_WithOutOfRangeDay_ShouldReturnBadRequest()
     {
         var owner = await TestApi.RegisterOwnerAsync(_factory);
         const string body = """[{"dayOfWeek":9,"startTime":"08:00:00","endTime":"12:00:00","isActive":true}]""";
@@ -263,8 +258,7 @@ public class WorkingHoursControllerTests : IClassFixture<BookingApiFactory>
         var response = await owner.Client.PutAsync(
             "/api/workinghours", new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
 
-        // CURRENT BEHAVIOR (bug): the enum is not range-checked, so day 9 is accepted and stored.
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await GetHoursAsync(owner)).Should().OnlyContain(h => !h.IsActive);
     }
 }

@@ -29,13 +29,6 @@ public class WorkingHoursController : ControllerBase
     public async Task<ActionResult<IEnumerable<WorkingHoursResponse>>> UpdateWorkingHours([FromBody] List<WorkingHoursRequest> requests)
     {
         var result = await _workingHoursService.ReplaceWorkingHoursAsync(User.GetUserId(), requests);
-        if (result.IsFailure)
-        {
-            return this.ToFailureResult(result.Error!);
-        }
-
-        // CURRENT BEHAVIOR (bug): nests the GET action result instead of its value. Kept as-is so the
-        // response body does not change (pinned by WorkingHoursControllerTests).
-        return Ok(await GetWorkingHours());
+        return this.ToActionResult(result, Ok);
     }
 }
