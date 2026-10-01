@@ -64,7 +64,12 @@ controllers, an empty Application layer, and thin tests around the risky paths.
   - #32 `refactor/hardening-32-frontend-proxy` (base #31): 2e7cf73..98bd45a — T12 frontend. ~490.
   - #33 `refactor/hardening-33-session-robustness` (base #32): 50621da..9092122 — T12b. ~250.
   - #34 `refactor/hardening-34-proxy-key` (base #33): dd31ae4..393df55 — T12b proxy key + outage fixes. ~380.
-  - Next slices continue from `refactor/project-hardening` on top of #34; retarget each PR to main after its parent merges.
+  - #35 `refactor/hardening-35-session-restore` (base #34): a55ac86..e6cf443 — T11 auth. ~220.
+  - #36 `refactor/hardening-36-react-query` (base #35): 14cf68b — T11 React Query + calendar. ~2960 (size:exception).
+  - #37 `refactor/hardening-37-booking-availability` (base #36): ad5e2ef..d963d7b — T11 booking/availability. ~760.
+  - #38 `refactor/hardening-38-hours-expiry` (base #37): 83fd3ef..3502a26 — T11b. ~300.
+  - #39 `refactor/hardening-39-double-submit` (base #38): 3424b96..237b347 — T11b. ~430.
+  - Next slices continue from `refactor/project-hardening` on top of #39; retarget each PR to main after its parent merges.
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks
