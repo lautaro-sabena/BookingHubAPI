@@ -44,6 +44,7 @@ describe('Types', () => {
         price: 25.00,
         isActive: true,
         companyId: '123e4567-e89b-12d3-a456-426614174001',
+        companyName: 'Test Company',
       };
       
       expect(service.name).toBeDefined();
@@ -60,6 +61,7 @@ describe('Types', () => {
         customerId: '123e4567-e89b-12d3-a456-426614174000',
         companyId: '123e4567-e89b-12d3-a456-426614174001',
         serviceName: 'Haircut',
+        serviceDuration: 30,
         customerEmail: 'customer@example.com',
         startTime: '2024-01-15T10:00:00Z',
         endTime: '2024-01-15T10:30:00Z',

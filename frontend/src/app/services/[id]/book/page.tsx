@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import api from "@/lib/api";
 import { Service, Reservation, AvailableSlot } from "@/types";
 
-export default function BookServicePage({ params }: { params: { id: string } }) {
+export default function BookServicePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const { user, isLoading: authLoading } = useAuth();
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,14 +29,14 @@ export default function BookServicePage({ params }: { params: { id: string } }) 
 
   const fetchService = useCallback(async () => {
     try {
-      const response = await api.get<Service>(`/services/${params.id}`);
+      const response = await api.get<Service>(`/services/${id}`);
       setService(response.data);
     } catch (err) {
       console.error("Failed to fetch service:", err);
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [id]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -49,14 +50,14 @@ export default function BookServicePage({ params }: { params: { id: string } }) 
     }
 
     fetchService();
-  }, [user, authLoading, router, params.id, fetchService]);
+  }, [user, authLoading, router, id, fetchService]);
 
   const fetchAvailableSlots = async (date: Date) => {
     setSlotsLoading(true);
     setSelectedSlot(null);
     try {
       const dateStr = date.toISOString().split("T")[0];
-      const response = await api.get<AvailableSlot[]>(`/availability/${params.id}?date=${dateStr}`);
+      const response = await api.get<AvailableSlot[]>(`/availability/${id}?date=${dateStr}`);
       setAvailableSlots(response.data);
     } catch (err) {
       console.error("Failed to fetch availability:", err);
@@ -91,7 +92,7 @@ export default function BookServicePage({ params }: { params: { id: string } }) 
 
     try {
       await api.post<Reservation>("/reservations", {
-        serviceId: params.id,
+        serviceId: id,
         startTime: selectedSlot.startTime,
         notes: notes || null,
       });
