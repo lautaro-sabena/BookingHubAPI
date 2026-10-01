@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/api";
+import { toCompanyLocalDate } from "@/lib/dateTime";
 import { Reservation } from "@/types";
 
 export default function CustomerDashboardPage() {
@@ -88,7 +89,7 @@ export default function CustomerDashboardPage() {
                   <div>
                     <p className="font-medium">{reservation.serviceName}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(reservation.startTime).toLocaleString()}
+                      {toCompanyLocalDate(reservation.startTime).toLocaleString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

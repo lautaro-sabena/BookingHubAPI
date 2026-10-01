@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@/lib/api";
+import { toCompanyLocalDate } from "@/lib/dateTime";
 import { Reservation } from "@/types";
 
 interface CalendarDay {
@@ -80,7 +81,7 @@ export default function CustomerCalendarPage() {
 
   const getReservationsForDate = (date: Date): Reservation[] => {
     return reservations.filter((r) => {
-      const resDate = new Date(r.startTime);
+      const resDate = toCompanyLocalDate(r.startTime);
       return (
         resDate.getFullYear() === date.getFullYear() &&
         resDate.getMonth() === date.getMonth() &&
@@ -90,7 +91,7 @@ export default function CustomerCalendarPage() {
   };
 
   const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = toCompanyLocalDate(dateString);
     return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
@@ -201,7 +202,7 @@ export default function CustomerCalendarPage() {
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Date & Time</p>
                 <p className="text-sm">
-                  {formatDate(new Date(selectedReservation.startTime))} at {formatTime(selectedReservation.startTime)}
+                  {formatDate(toCompanyLocalDate(selectedReservation.startTime))} at {formatTime(selectedReservation.startTime)}
                 </p>
               </div>
               <div>
