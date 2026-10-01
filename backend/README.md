@@ -99,9 +99,162 @@ dotnet build
 # Ejecutar
 dotnet run --project src/BookingHubAPI.API
 
+# La base de datos se migra aparte (ver "Database migrations runbook")
+
 # Con perfiles específicos
 dotnet run --project src/BookingHubAPI.API --configuration Debug
 ```
+
+## Database migrations runbook
+
+The API **never creates or changes the schema at startup** (`EnsureCreated()`/`Migrate()` are gone).
+The schema is managed with EF Core migrations in `src/BookingHubAPI.Infrastructure/Data/Migrations`
+and applied by hand, with a backup, before deploying the matching API version.
+
+| Migration | What it does |
+|-----------|--------------|
+| `Baseline` | The whole current schema (replaces the stale `InitialCreate`). Never runs on production, which already has these tables: it is only recorded in the history (step 3). |
+| `ConvertReservationTimesToUtc` | One-time data fix: reservations held company-local wall-clock times labelled UTC; they become real UTC instants. Companies in `UTC` are skipped. It detects the real column type (`timestamp with time zone` or `timestamp without time zone`) and only runs the matching conversion. Runs once (tracked in the history), never twice. |
+| `NormalizeUserEmails` | Lower-cases `Users.Email`. **Fails without changing anything** if two e-mails differ only by case, and prints them. The existing unique index `IX_Users_Email` then guarantees case-insensitive uniqueness because the app always stores lower-case. |
+
+### Tooling
+
+`dotnet-ef` is pinned in `.config/dotnet-tools.json` (same version as EF Core). From `backend/`:
+
+```bash
+dotnet tool restore
+dotnet ef migrations list   --project src/BookingHubAPI.Infrastructure       # names only; a "database access" warning is expected offline
+dotnet ef migrations add <Name> --project src/BookingHubAPI.Infrastructure   # after changing the model
+dotnet ef migrations script --idempotent --project src/BookingHubAPI.Infrastructure -o migrate.sql
+```
+
+`BookingDbContextFactory` provides the design-time context with a placeholder connection string:
+generating migrations and scripts needs no secrets and never connects. Always use `--project src/BookingHubAPI.Infrastructure`.
+A unit test (`ModelSnapshotTests`) fails when the model changed without a new migration.
+
+### Timestamp columns
+
+`Program.cs` keeps `Npgsql.EnableLegacyTimestampBehavior`. With it, EF maps every `DateTime` to
+**`timestamp without time zone`**, which is what `EnsureCreated()` created in production (T8b stores UTC
+instants in those columns and relies on this mapping). The `Baseline` therefore declares
+`timestamp without time zone` everywhere; the old `InitialCreate` declared `timestamp with time zone` and also lacked the
+`Favorites` table, so it was never usable against production. The design-time factory sets the same switch, so generated
+migrations match the runtime. Removing the switch would need a separate data-and-code migration to `timestamptz`; it is not part of this change.
+
+### Production: first deploy of the migrations
+
+Production already has the tables (created by `EnsureCreated()`) but no `__EFMigrationsHistory`. Do this in a maintenance
+window, with the **old API stopped** (a running old API would keep writing local wall-clock times while the conversion runs).
+Use `psql -v ON_ERROR_STOP=1` for every script below.
+
+1. **Back up**: `pg_dump --format=custom --file=bookinghub-$(date +%F).dump "<connection string>"`.
+   Try restoring it into a scratch database at least once before relying on it.
+2. **Diagnose** (read-only):
+
+   ```sql
+   -- Real column types. Expected for a database created by EnsureCreated(): "timestamp without time zone".
+   SELECT table_name, column_name, data_type FROM information_schema.columns
+   WHERE table_schema = current_schema() AND data_type LIKE 'timestamp%' ORDER BY 1, 2;
+
+   -- Are all six tables there? (EnsureCreated does not add tables that were introduced later, e.g. "Favorites".)
+   SELECT t AS missing_table FROM unnest(ARRAY['Companies','Favorites','Reservations','Services','Users','WorkingHours']) t
+   WHERE to_regclass(format('%I.%I', current_schema(), t)) IS NULL;
+
+   -- E-mails that differ only by case. Must return 0 rows; otherwise resolve them first (merge/rename accounts).
+   SELECT lower("Email") AS email, count(*) AS accounts, array_agg("Id") AS ids
+   FROM "Users" GROUP BY lower("Email") HAVING count(*) > 1;
+
+   -- Time zones stored, and how many reservations will be converted. Each must be a valid IANA id known to PostgreSQL.
+   SELECT c."TimeZone", count(r."Id") AS reservations, EXISTS (SELECT 1 FROM pg_timezone_names WHERE name = c."TimeZone") AS known_to_postgres
+   FROM "Companies" c LEFT JOIN "Reservations" r ON r."CompanyId" = c."Id" GROUP BY c."TimeZone" ORDER BY 2 DESC;
+
+   -- Server time zone (should be UTC) and whether history already exists.
+   SHOW timezone;
+   SELECT to_regclass('"__EFMigrationsHistory"');
+   ```
+
+   Also spot-check reservations that fall in a DST gap or overlap of their company zone; they need manual review after the conversion.
+3. **Baseline the history** (safe to run any number of times: it refuses if a table is missing and inserts the row only once):
+
+   ```sql
+   DO $bootstrap$
+   DECLARE
+       missing text;
+   BEGIN
+       SELECT string_agg(t, ', ') INTO missing
+       FROM unnest(ARRAY['Companies', 'Favorites', 'Reservations', 'Services', 'Users', 'WorkingHours']) AS t
+       WHERE to_regclass(format('%I.%I', current_schema(), t)) IS NULL;
+
+       IF missing IS NOT NULL THEN
+           RAISE EXCEPTION 'Cannot baseline: missing tables: %. Create them first (see "Missing tables").', missing;
+       END IF;
+
+       CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+           "MigrationId" character varying(150) NOT NULL,
+           "ProductVersion" character varying(32) NOT NULL,
+           CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+       );
+
+       INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+       VALUES ('20260929224051_Baseline', '9.0.0')
+       ON CONFLICT ("MigrationId") DO NOTHING;
+   END
+   $bootstrap$;
+   ```
+
+   *Missing tables*: if only `Favorites` is missing, create it, then repeat this step:
+
+   ```sql
+   CREATE TABLE "Favorites" (
+       "Id" uuid NOT NULL,
+       "CustomerId" uuid NOT NULL,
+       "ServiceId" uuid NOT NULL,
+       "CreatedAt" timestamp without time zone NOT NULL,
+       "UpdatedAt" timestamp without time zone,
+       CONSTRAINT "PK_Favorites" PRIMARY KEY ("Id"),
+       CONSTRAINT "FK_Favorites_Services_ServiceId" FOREIGN KEY ("ServiceId") REFERENCES "Services" ("Id") ON DELETE CASCADE,
+       CONSTRAINT "FK_Favorites_Users_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Users" ("Id") ON DELETE CASCADE
+   );
+   CREATE UNIQUE INDEX "IX_Favorites_CustomerId_ServiceId" ON "Favorites" ("CustomerId", "ServiceId");
+   CREATE INDEX "IX_Favorites_ServiceId" ON "Favorites" ("ServiceId");
+   ```
+
+   For any other missing table, take its `CREATE TABLE`/`CREATE INDEX` statements from `dotnet ef migrations script 0 Baseline`.
+4. **Generate and review** the script (`dotnet ef migrations script --idempotent ... -o migrate.sql`, see Tooling). Read it: the
+   `Baseline` part is skipped because step 3 recorded it; the two data migrations are the parts that touch data.
+5. **Run it** in one transaction (the script has its own `START TRANSACTION`/`COMMIT`; an error aborts everything):
+   `psql -v ON_ERROR_STOP=1 -f migrate.sql "<connection string>"`. Re-running is harmless: applied migrations are skipped.
+   If `NormalizeUserEmails` reports colliding e-mails, nothing was changed (not even the reservation conversion); fix the accounts and run again.
+6. **Verify**: `SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY 1;` lists the three migrations; spot-check a few
+   reservations in a known-time-zone company (e.g. a 09:00 Buenos Aires booking is now stored as 12:00).
+7. **Deploy the new API** and start it. Only after this step is it safe to accept traffic again.
+
+Column-type handling: if step 2 shows `timestamp with time zone` instead of `timestamp without time zone`, nothing extra is needed
+for this deploy: `ConvertReservationTimesToUtc` converts correctly for both types, and the app works with either as long as the
+server time zone is UTC. The schema then differs from the `Baseline` only in those column types (EF does not compare types at runtime).
+
+**Rollback**: restore the backup taken in step 1 into the database (the script is transactional, so a failed run leaves the
+database as it was; only a run that completed needs a restore), then redeploy the previous API version.
+`ConvertReservationTimesToUtc` has a `Down` for `dotnet ef database update`, but the backup is the supported rollback;
+`NormalizeUserEmails` cannot restore the original casing.
+
+### Later deploys
+
+Repeat steps 1, 4, 5, 7 (skip the diagnostics and the baseline). Never edit an applied migration; add a new one.
+
+### Local development
+
+```bash
+cd backend
+dotnet tool restore
+dotnet ef database update --project src/BookingHubAPI.Infrastructure \
+  --connection "Host=localhost;Port=5432;Database=bookinghubdb;Username=postgres;Password=<your-local-postgres-password>"
+```
+
+With `docker-compose` (PostgreSQL is published on `127.0.0.1:5432`), start `postgres` first
+(`docker compose up -d postgres`), run the command above with the `DB_PASSWORD` from your `.env`, then start the rest.
+The API does not create tables itself, so a fresh database must be migrated before the first request.
+For a database that already exists from an older `EnsureCreated()` run, either drop and recreate it or follow the production steps above.
 
 ## Testing
 
