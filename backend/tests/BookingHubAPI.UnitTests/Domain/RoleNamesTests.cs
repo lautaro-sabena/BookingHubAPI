@@ -7,8 +7,8 @@ public class RoleNamesTests
     [Fact]
     public void RoleNames_ShouldMatchUserRoleEnumNames()
     {
-        Assert.Equal(UserRole.Owner.ToString(), RoleNames.Owner);
-        Assert.Equal(UserRole.Customer.ToString(), RoleNames.Customer);
+        Assert.Equal(RoleNames.Owner, UserRole.Owner.ToString());
+        Assert.Equal(RoleNames.Customer, UserRole.Customer.ToString());
     }
 
     [Fact]
