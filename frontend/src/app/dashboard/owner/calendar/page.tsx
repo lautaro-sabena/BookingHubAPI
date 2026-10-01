@@ -35,6 +35,7 @@ export default function OwnerCalendarPage() {
         <OwnerReservationDetails
           reservation={selected}
           onClose={() => setSelected(null)}
+          busy={confirm.isPending || cancel.isPending}
           onConfirm={(r) => act(confirm.mutate, r)}
           onCancel={(r) => act(cancel.mutate, r)}
         />

@@ -3,12 +3,13 @@
 import { WorkingHoursForm } from "@/components/availability/WorkingHoursForm";
 import { Button } from "@/components/ui/button";
 import { ErrorNotice } from "@/components/ui/error-notice";
-import { useWorkingHours } from "@/hooks/queries/useWorkingHours";
+import { useSaveWorkingHours, useWorkingHours } from "@/hooks/queries/useWorkingHours";
 import { useRequireRole } from "@/hooks/useRequireRole";
 
 export default function AvailabilityPage() {
   const { allowed } = useRequireRole("Owner");
   const { data: week, isLoading, error, refetch, isFetching } = useWorkingHours();
+  const save = useSaveWorkingHours();
 
   if (!allowed || isLoading) {
     return <div>Loading...</div>;
@@ -33,6 +34,7 @@ export default function AvailabilityPage() {
       // the owner's unsaved edits, one that returns a different schedule (changed elsewhere) resyncs the form.
       key={JSON.stringify(week)}
       initial={week}
+      save={save}
     />
   );
 }

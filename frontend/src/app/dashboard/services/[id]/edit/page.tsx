@@ -1,6 +1,8 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { isAxiosError } from "axios";
+import { Button } from "@/components/ui/button";
 import { ServiceForm } from "@/components/services/ServiceForm";
 import { ErrorNotice } from "@/components/ui/error-notice";
 import { useService, useUpdateService } from "@/hooks/queries/useServices";
@@ -9,7 +11,7 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 export default function EditServicePage() {
   const { allowed } = useRequireRole("Owner");
   const serviceId = useParams().id as string;
-  const { data: service, isLoading, isError } = useService(serviceId, allowed);
+  const { data: service, isLoading, error, refetch, isFetching } = useService(serviceId, allowed);
   const update = useUpdateService(serviceId);
   const router = useRouter();
 
@@ -21,7 +23,16 @@ export default function EditServicePage() {
     return (
       <div className="max-w-2xl">
         <h1 className="text-2xl font-bold mb-6">Edit Service</h1>
-        {isError && <ErrorNotice error={new Error("Service not found")} fallback="Service not found" />}
+        {isAxiosError(error) && error.response?.status === 404 ? (
+          <p className="text-muted-foreground">Service not found</p>
+        ) : error ? (
+          <div className="space-y-4">
+            <ErrorNotice error={error} fallback="Failed to load the service" />
+            <Button onClick={() => void refetch()} disabled={isFetching}>
+              {isFetching ? "Retrying..." : "Retry"}
+            </Button>
+          </div>
+        ) : null}
       </div>
     );
   }

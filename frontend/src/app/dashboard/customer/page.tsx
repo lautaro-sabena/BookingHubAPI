@@ -66,6 +66,7 @@ export default function CustomerDashboardPage() {
                         variant="destructive"
                         size="sm"
                         onClick={() => handleCancel(reservation.id)}
+                        disabled={cancel.isPending}
                       >
                         Cancel
                       </Button>

@@ -42,7 +42,7 @@ export default function OwnerReservationsPage() {
                     </p>
                   </div>
                   {reservation.status === "Pending" && (
-                    <Button onClick={() => confirm.mutate(reservation.id)}>
+                    <Button onClick={() => confirm.mutate(reservation.id)} disabled={confirm.isPending}>
                       Confirm
                     </Button>
                   )}

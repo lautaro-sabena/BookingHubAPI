@@ -44,6 +44,7 @@ export default function ServicesPage() {
                 size="icon"
                 className="absolute top-2 right-2"
                 onClick={(e) => toggleFavorite(service.id, e)}
+                disabled={addFavorite.isPending || removeFavorite.isPending}
               >
                 <Star
                   className={`h-5 w-5 ${favoriteIds.has(service.id) ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`}

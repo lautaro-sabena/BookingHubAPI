@@ -5,13 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorNotice } from "@/components/ui/error-notice";
-import { useSaveWorkingHours } from "@/hooks/queries/useWorkingHours";
+import type { useSaveWorkingHours } from "@/hooks/queries/useWorkingHours";
 import { DAYS_OF_WEEK, DayAvailability } from "@/lib/workingHours";
 
-/** Weekly opening hours editor. It takes the saved week once: key it by whatever should reset it. */
-export function WorkingHoursForm({ initial }: { initial: DayAvailability[] }) {
+/**
+ * Weekly opening hours editor. It takes the saved week once: key it by whatever should reset it. The save mutation
+ * is owned by the caller so its success and error state survive a remount (the refetch after a save changes the key).
+ */
+export function WorkingHoursForm({
+  initial,
+  save,
+}: {
+  initial: DayAvailability[];
+  save: ReturnType<typeof useSaveWorkingHours>;
+}) {
   const [days, setDays] = useState(initial);
-  const save = useSaveWorkingHours();
 
   const updateDay = (dayOfWeek: number, changes: Partial<DayAvailability>) => {
     setDays((prev) => prev.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, ...changes } : d)));

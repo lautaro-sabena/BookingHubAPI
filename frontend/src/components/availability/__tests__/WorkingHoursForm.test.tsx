@@ -8,7 +8,12 @@ vi.mock("@/lib/api", () => ({ default: { put } }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "u1", role: "Owner" }, isLoading: false }) }));
 
 import { WorkingHoursForm } from "../WorkingHoursForm";
-import { defaultWeek } from "@/lib/workingHours";
+import { useSaveWorkingHours } from "@/hooks/queries/useWorkingHours";
+import { defaultWeek, DayAvailability } from "@/lib/workingHours";
+
+function FormWithSave({ initial }: { initial: DayAvailability[] }) {
+  return <WorkingHoursForm initial={initial} save={useSaveWorkingHours()} />;
+}
 
 function renderForm() {
   const week = defaultWeek().map((d) =>
@@ -17,7 +22,7 @@ function renderForm() {
   const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <WorkingHoursForm initial={week} />
+      <FormWithSave initial={week} />
     </QueryClientProvider>,
   );
 }

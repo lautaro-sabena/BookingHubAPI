@@ -114,4 +114,19 @@ describe("BookingForm", () => {
     expect(await screen.findByText("That slot was just taken.")).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
   });
+
+  it("cannot book twice: the button stays disabled from the click until the redirect", async () => {
+    renderForm();
+    fireEvent.change(screen.getByLabelText("Select Date"), { target: { value: "2030-01-07" } });
+    fireEvent.click(await screen.findByRole("button", { name: "09:00 AM" }));
+    const confirm = screen.getByRole("button", { name: "Confirm Booking" }) as HTMLButtonElement;
+
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    expect(await screen.findByText(/Reservation created successfully/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Confirm Booking" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Booking" }));
+    expect(post).toHaveBeenCalledTimes(1);
+  });
 });
