@@ -344,7 +344,8 @@ Todos los errores (400, 401, 403, 404, 409, 500) usan RFC 7807 (`application/pro
 - **JWT**: Tokens con expiración configurable
 - **CORS**: Orígenes configurables por entorno
 - **Passwords**: Hasheados con bcrypt
-- **HTTPS**: Redirección automática en producción
+- **HTTPS**: La redirección la hace el proxy de Render (la API no usa `UseHttpsRedirection`); HSTS (`Strict-Transport-Security`) se envía fuera de Development
+- **Cabeceras de seguridad** (en todas las respuestas, también errores y preflights CORS; `SecurityHeadersExtensions`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`. Sin cabecera `Server`. No se envía `Cross-Origin-Resource-Policy`: frontend y API viven en sitios distintos (`*.onrender.com`) y `same-site` bloquearía las llamadas CORS legítimas.
 
 ## Docker
 
