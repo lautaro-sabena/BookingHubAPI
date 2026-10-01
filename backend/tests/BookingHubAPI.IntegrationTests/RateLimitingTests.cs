@@ -1,6 +1,7 @@
 using System.Net;
 using AspNetCoreRateLimit;
 using BookingHubAPI.API.Middleware;
+using BookingHubAPI.IntegrationTests.Support;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -54,7 +55,11 @@ public class RateLimitingTests
         }
 
         lastResponse.Should().NotBeNull();
-        lastResponse!.StatusCode.Should().Be((HttpStatusCode)429);
+        var problem = await lastResponse!.ShouldBeProblemAsync((HttpStatusCode)429);
+        problem.Detail.Should().StartWith("Too many requests");
+        lastResponse.Headers.RetryAfter.Should().NotBeNull("clients need to know when to retry");
+        lastResponse.Headers.GetValues("X-Content-Type-Options").Should().Contain("nosniff",
+            "security headers still apply to throttled responses");
     }
 
     [Fact]
