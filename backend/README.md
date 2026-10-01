@@ -149,6 +149,25 @@ dotnet test --filter "FullyQualifiedName~UnitTests"
 - `GET /api/availability/{serviceId}` - Ver disponibilidad
 - `POST /api/availability` - Configurar disponibilidad (Owner)
 
+## Respuestas de error
+
+Todos los errores (400, 401, 403, 404, 409, 500) usan RFC 7807 (`application/problem+json`):
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Time slot is not available",
+  "traceId": "00-..."
+}
+```
+
+- `detail` lleva el mensaje para el usuario; los errores de validación del modelo añaden `errors` (campo → mensajes).
+- Un token sin un id de usuario válido responde 401. Las excepciones no controladas responden 500 con un `detail` genérico; el mensaje y el stack solo se registran en logs.
+- La paginación (`page` 1–1000000, `pageSize` 1–100) se valida en `/api/services`, `/api/services/all` y `/api/reservations`; fuera de rango devuelve 400 con `errors`.
+- El frontend lee el mensaje con `getApiErrorMessage` (`frontend/src/lib/apiError.ts`).
+
 ## Salud
 
 - `GET /health` - Health checks

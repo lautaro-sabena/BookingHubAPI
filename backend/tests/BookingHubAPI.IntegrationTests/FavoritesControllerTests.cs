@@ -169,7 +169,7 @@ public class FavoritesControllerTests : IClassFixture<BookingApiFactory>
         var response = await AddAsync(customer, UnknownId);
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await response.Content.ReadAsStringAsync()).Should().Contain("Service not found");
+        (await response.ReadProblemAsync()).Detail.Should().Contain("Service not found");
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public class FavoritesControllerTests : IClassFixture<BookingApiFactory>
         var response = await AddAsync(customer, service.Id);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await response.Content.ReadAsStringAsync()).Should().Contain("Service already in favorites");
+        (await response.ReadProblemAsync()).Detail.Should().Contain("Service already in favorites");
         (await ListAsync(customer)).Should().ContainSingle();
     }
 
@@ -272,7 +272,7 @@ public class FavoritesControllerTests : IClassFixture<BookingApiFactory>
         var response = await customer.Client.DeleteAsync($"/api/favorites/{service.Id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await response.Content.ReadAsStringAsync()).Should().Contain("Favorite not found");
+        (await response.ReadProblemAsync()).Detail.Should().Contain("Favorite not found");
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public class FavoritesControllerTests : IClassFixture<BookingApiFactory>
         var response = await customer.Client.DeleteAsync($"/api/favorites/{UnknownId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await response.Content.ReadAsStringAsync()).Should().Contain("Favorite not found");
+        (await response.ReadProblemAsync()).Detail.Should().Contain("Favorite not found");
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using BookingHubAPI.Application.Common;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Application.Services;
 using BookingHubAPI.Domain.Entities;
@@ -30,14 +29,14 @@ public class FavoritesController : ControllerBase
     public async Task<ActionResult<FavoriteDto>> AddFavorite(Guid serviceId)
     {
         var result = await _favoriteService.AddFavoriteAsync(User.GetUserId(), serviceId);
-        return result.IsSuccess ? Ok(result.Value) : ToPlainTextFailure(result.Error!);
+        return this.ToActionResult(result, Ok);
     }
 
     [HttpDelete("{serviceId}")]
     public async Task<IActionResult> RemoveFavorite(Guid serviceId)
     {
         var result = await _favoriteService.RemoveFavoriteAsync(User.GetUserId(), serviceId);
-        return result.IsSuccess ? NoContent() : ToPlainTextFailure(result.Error!);
+        return result.IsSuccess ? NoContent() : this.ToFailureResult(result.Error!);
     }
 
     [HttpGet("{serviceId}/check")]
@@ -45,15 +44,4 @@ public class FavoritesController : ControllerBase
     {
         return Ok(await _favoriteService.IsFavoriteAsync(User.GetUserId(), serviceId));
     }
-
-    /// <summary>
-    /// This API has always answered favorites failures with the bare message as the body
-    /// (not the <c>{ "error": ... }</c> object used elsewhere); clients may depend on it.
-    /// </summary>
-    private ActionResult ToPlainTextFailure(Error error) => error.Kind switch
-    {
-        ErrorKind.NotFound => NotFound(error.Message),
-        ErrorKind.Validation => BadRequest(error.Message),
-        _ => this.ToFailureResult(error)
-    };
 }

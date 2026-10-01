@@ -26,6 +26,7 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
 
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 
 var connectionString = StartupConfigurationValidator.RequireConnectionString(builder.Configuration);
@@ -111,6 +112,9 @@ var app = builder.Build();
 app.UseForwardedHeaders();
 
 app.UseMiddleware<BookingHubAPI.API.Middleware.ErrorHandlingMiddleware>();
+
+// Gives bodiless error responses (401/403 from auth, unmatched routes, ...) a problem+json body.
+app.UseStatusCodePages();
 
 app.UseCors();
 

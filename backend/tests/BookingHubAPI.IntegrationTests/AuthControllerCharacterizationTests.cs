@@ -30,8 +30,7 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
 
     private static async Task<string> ErrorOf(HttpResponseMessage response)
     {
-        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
-        return json.GetProperty("error").GetString()!;
+        return (await response.ReadProblemAsync()).Detail!;
     }
 
     private static JwtSecurityToken Decode(string token) => new JwtSecurityTokenHandler().ReadJwtToken(token);
@@ -281,8 +280,11 @@ public class AuthControllerCharacterizationTests : IClassFixture<BookingApiFacto
 
         wrongPassword.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         unknownEmail.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        (await ErrorOf(wrongPassword)).Should().Be("Invalid email or password");
-        (await unknownEmail.Content.ReadAsStringAsync()).Should().Be(await wrongPassword.Content.ReadAsStringAsync());
+        var unknownProblem = await unknownEmail.ReadProblemAsync();
+        var wrongProblem = await wrongPassword.ReadProblemAsync();
+        wrongProblem.Detail.Should().Be("Invalid email or password");
+        unknownProblem.Title.Should().Be(wrongProblem.Title);
+        unknownProblem.Detail.Should().Be(wrongProblem.Detail);
     }
 
     [Fact]
