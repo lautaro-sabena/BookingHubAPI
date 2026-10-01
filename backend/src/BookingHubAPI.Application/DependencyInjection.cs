@@ -13,6 +13,8 @@ public static class DependencyInjection
         services.TryAddSingleton(TimeProvider.System);
         services.AddValidatorsFromAssemblyContaining<IReservationService>();
         services.AddScoped<IReservationService, ReservationService>();
+        services.AddScoped<IServiceCatalogService, ServiceCatalogService>();
+        services.AddScoped<IWorkingHoursService, WorkingHoursService>();
         return services;
     }
 }

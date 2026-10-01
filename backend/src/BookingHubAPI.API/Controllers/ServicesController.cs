@@ -1,9 +1,8 @@
 using BookingHubAPI.Application.DTOs;
+using BookingHubAPI.Application.Services;
 using BookingHubAPI.Domain.Entities;
-using BookingHubAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using BookingHubAPI.API.Extensions;
 
 namespace BookingHubAPI.API.Controllers;
@@ -13,18 +12,11 @@ namespace BookingHubAPI.API.Controllers;
 [Authorize]
 public class ServicesController : ControllerBase
 {
-    private readonly IServiceRepository _serviceRepository;
-    private readonly ICompanyRepository _companyRepository;
-    private readonly IUserRepository _userRepository;
+    private readonly IServiceCatalogService _serviceCatalog;
 
-    public ServicesController(
-        IServiceRepository serviceRepository,
-        ICompanyRepository companyRepository,
-        IUserRepository userRepository)
+    public ServicesController(IServiceCatalogService serviceCatalog)
     {
-        _serviceRepository = serviceRepository;
-        _companyRepository = companyRepository;
-        _userRepository = userRepository;
+        _serviceCatalog = serviceCatalog;
     }
 
     [HttpGet]
@@ -34,33 +26,8 @@ public class ServicesController : ControllerBase
         [FromQuery] int pageSize = 10,
         [FromQuery] string? search = null)
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null)
-        {
-            return NotFound();
-        }
-
-        Guid companyId;
-        
-        if (user.Role == UserRole.Owner && user.CompanyId.HasValue)
-        {
-            companyId = user.CompanyId.Value;
-        }
-        else
-        {
-            return Forbid();
-        }
-
-        var services = await _serviceRepository.GetByCompanyIdAsync(companyId, page, pageSize, search);
-        var totalCount = await _serviceRepository.GetCountByCompanyIdAsync(companyId, search);
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        var serviceResponses = services.Select(s => new ServiceResponse(
-            s.Id, s.Name, s.Description, s.DurationMinutes, s.Price, s.IsActive, s.CompanyId, s.Company.Name, s.Company.Description)).ToList();
-
-        return Ok(new PagedResult<ServiceResponse>(serviceResponses, totalCount, page, pageSize, totalPages));
+        var result = await _serviceCatalog.GetOwnServicesAsync(User.GetUserId(), page, pageSize, search);
+        return this.ToActionResult(result, Ok);
     }
 
     [HttpGet("all")]
@@ -68,181 +35,34 @@ public class ServicesController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
-        var services = await _serviceRepository.GetAllActiveAsync(page, pageSize);
-        var totalCount = await _serviceRepository.GetAllActiveCountAsync();
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        var serviceResponses = services.Select(s => new ServiceResponse(
-            s.Id, s.Name, s.Description, s.DurationMinutes, s.Price, s.IsActive, s.CompanyId, s.Company.Name, s.Company.Description)).ToList();
-
-        return Ok(new PagedResult<ServiceResponse>(serviceResponses, totalCount, page, pageSize, totalPages));
+        return Ok(await _serviceCatalog.GetPublicServicesAsync(page, pageSize));
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse>> GetService(Guid id)
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null)
-        {
-            return NotFound();
-        }
-
-        var service = await _serviceRepository.GetByIdWithCompanyAsync(id);
-
-        if (service == null)
-        {
-            return NotFound();
-        }
-
-        if (user.Role == UserRole.Owner && user.CompanyId.HasValue && service.CompanyId == user.CompanyId.Value)
-        {
-            return Ok(new ServiceResponse(
-                service.Id,
-                service.Name,
-                service.Description,
-                service.DurationMinutes,
-                service.Price,
-                service.IsActive,
-                service.CompanyId,
-                service.Company.Name,
-                service.Company.Description));
-        }
-
-        if (service.IsActive && service.Company.IsActive)
-        {
-            return Ok(new ServiceResponse(
-                service.Id,
-                service.Name,
-                service.Description,
-                service.DurationMinutes,
-                service.Price,
-                service.IsActive,
-                service.CompanyId,
-                service.Company.Name,
-                service.Company.Description));
-        }
-
-        return Forbid();
+        var result = await _serviceCatalog.GetServiceAsync(User.GetUserId(), id);
+        return this.ToActionResult(result, Ok);
     }
 
     [HttpPost]
     public async Task<ActionResult<ServiceResponse>> CreateService([FromBody] ServiceRequest request)
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
-        {
-            return Forbid();
-        }
-
-        var service = new Domain.Entities.Service
-        {
-            Name = request.Name,
-            Description = request.Description,
-            DurationMinutes = request.DurationMinutes,
-            Price = request.Price,
-            CompanyId = user.CompanyId.Value
-        };
-
-        var createdService = await _serviceRepository.CreateAsync(service);
-        
-        var company = await _companyRepository.GetByIdAsync(createdService.CompanyId);
-
-        return CreatedAtAction(nameof(GetServices), new ServiceResponse(
-            createdService.Id,
-            createdService.Name,
-            createdService.Description,
-            createdService.DurationMinutes,
-            createdService.Price,
-            createdService.IsActive,
-            createdService.CompanyId,
-            company?.Name ?? string.Empty,
-            company?.Description));
+        var result = await _serviceCatalog.CreateServiceAsync(User.GetUserId(), request);
+        return this.ToActionResult(result, service => CreatedAtAction(nameof(GetServices), service));
     }
 
     [HttpPut("{id}")]
     public async Task<ActionResult<ServiceResponse>> UpdateService(Guid id, [FromBody] ServiceUpdateRequest request)
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
-        {
-            return Forbid();
-        }
-
-        var service = await _serviceRepository.GetByIdAsync(id);
-
-        if (service == null || service.CompanyId != user.CompanyId.Value)
-        {
-            return NotFound();
-        }
-
-        if (!string.IsNullOrEmpty(request.Name))
-        {
-            service.Name = request.Name;
-        }
-
-        if (request.Description != null)
-        {
-            service.Description = request.Description;
-        }
-
-        if (request.DurationMinutes.HasValue)
-        {
-            service.DurationMinutes = request.DurationMinutes.Value;
-        }
-
-        if (request.Price.HasValue)
-        {
-            service.Price = request.Price.Value;
-        }
-
-        if (request.IsActive.HasValue)
-        {
-            service.IsActive = request.IsActive.Value;
-        }
-
-        var updatedService = await _serviceRepository.UpdateAsync(service);
-
-        var company = await _companyRepository.GetByIdAsync(updatedService.CompanyId);
-
-        return Ok(new ServiceResponse(
-            updatedService.Id,
-            updatedService.Name,
-            updatedService.Description,
-            updatedService.DurationMinutes,
-            updatedService.Price,
-            updatedService.IsActive,
-            updatedService.CompanyId,
-            company?.Name ?? string.Empty,
-            company?.Description));
+        var result = await _serviceCatalog.UpdateServiceAsync(User.GetUserId(), id, request);
+        return this.ToActionResult(result, Ok);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteService(Guid id)
     {
-        var userId = User.GetUserId();
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null || user.Role != UserRole.Owner || !user.CompanyId.HasValue)
-        {
-            return Forbid();
-        }
-
-        var service = await _serviceRepository.GetByIdAsync(id);
-
-        if (service == null || service.CompanyId != user.CompanyId.Value)
-        {
-            return NotFound();
-        }
-
-        service.IsActive = false;
-        await _serviceRepository.UpdateAsync(service);
-
-        return NoContent();
+        var result = await _serviceCatalog.DeleteServiceAsync(User.GetUserId(), id);
+        return result.IsSuccess ? NoContent() : this.ToFailureResult(result.Error!);
     }
 }
