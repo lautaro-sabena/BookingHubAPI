@@ -1,3 +1,4 @@
+using BookingHubAPI.Application.Abstractions;
 using BookingHubAPI.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -6,12 +7,6 @@ using System.Security.Claims;
 using System.Text;
 
 namespace BookingHubAPI.Infrastructure.Auth;
-
-public interface IJwtService
-{
-    string GenerateToken(Guid userId, string email, string role, Guid? companyId = null);
-    ClaimsPrincipal? ValidateToken(string token);
-}
 
 public class JwtService : IJwtService
 {

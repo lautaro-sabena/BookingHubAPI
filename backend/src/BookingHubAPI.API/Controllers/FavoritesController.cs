@@ -1,6 +1,7 @@
+using BookingHubAPI.Application.Common;
 using BookingHubAPI.Application.DTOs;
+using BookingHubAPI.Application.Services;
 using BookingHubAPI.Domain.Entities;
-using BookingHubAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BookingHubAPI.API.Extensions;
@@ -12,87 +13,47 @@ namespace BookingHubAPI.API.Controllers;
 [Authorize(Roles = RoleNames.Customer)]
 public class FavoritesController : ControllerBase
 {
-    private readonly IFavoriteRepository _favoriteRepository;
-    private readonly IServiceRepository _serviceRepository;
+    private readonly IFavoriteService _favoriteService;
 
-    public FavoritesController(
-        IFavoriteRepository favoriteRepository,
-        IServiceRepository serviceRepository)
+    public FavoritesController(IFavoriteService favoriteService)
     {
-        _favoriteRepository = favoriteRepository;
-        _serviceRepository = serviceRepository;
+        _favoriteService = favoriteService;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<FavoriteDto>>> GetFavorites()
     {
-        var userId = User.GetUserId();
-        var favorites = await _favoriteRepository.GetByCustomerIdAsync(userId);
-        var favoriteDtos = favorites.Select(f => f.ToDto());
-        return Ok(favoriteDtos);
+        return Ok(await _favoriteService.GetFavoritesAsync(User.GetUserId()));
     }
 
     [HttpPost("{serviceId}")]
     public async Task<ActionResult<FavoriteDto>> AddFavorite(Guid serviceId)
     {
-        var userId = User.GetUserId();
-
-        // Check if service exists
-        var service = await _serviceRepository.GetByIdWithCompanyAsync(serviceId);
-        if (service == null)
-        {
-            return NotFound("Service not found");
-        }
-
-        // Check if already favorited
-        var existing = await _favoriteRepository.GetByCustomerAndServiceAsync(userId, serviceId);
-        if (existing != null)
-        {
-            return BadRequest("Service already in favorites");
-        }
-
-        var favorite = new Favorite
-        {
-            CustomerId = userId,
-            ServiceId = serviceId
-        };
-
-        var created = await _favoriteRepository.AddAsync(favorite);
-        
-        var favoriteDto = new FavoriteDto
-        {
-            Id = created.Id,
-            ServiceId = service.Id,
-            ServiceName = service.Name,
-            ServiceDescription = service.Description,
-            DurationMinutes = service.DurationMinutes,
-            Price = service.Price,
-            CompanyId = service.CompanyId,
-            CompanyName = service.Company.Name
-        };
-
-        return Ok(favoriteDto);
+        var result = await _favoriteService.AddFavoriteAsync(User.GetUserId(), serviceId);
+        return result.IsSuccess ? Ok(result.Value) : ToPlainTextFailure(result.Error!);
     }
 
     [HttpDelete("{serviceId}")]
     public async Task<IActionResult> RemoveFavorite(Guid serviceId)
     {
-        var userId = User.GetUserId();
-        var removed = await _favoriteRepository.RemoveAsync(userId, serviceId);
-        
-        if (!removed)
-        {
-            return NotFound("Favorite not found");
-        }
-
-        return NoContent();
+        var result = await _favoriteService.RemoveFavoriteAsync(User.GetUserId(), serviceId);
+        return result.IsSuccess ? NoContent() : ToPlainTextFailure(result.Error!);
     }
 
     [HttpGet("{serviceId}/check")]
     public async Task<ActionResult<bool>> CheckFavorite(Guid serviceId)
     {
-        var userId = User.GetUserId();
-        var exists = await _favoriteRepository.ExistsAsync(userId, serviceId);
-        return Ok(exists);
+        return Ok(await _favoriteService.IsFavoriteAsync(User.GetUserId(), serviceId));
     }
+
+    /// <summary>
+    /// This API has always answered favorites failures with the bare message as the body
+    /// (not the <c>{ "error": ... }</c> object used elsewhere); clients may depend on it.
+    /// </summary>
+    private ActionResult ToPlainTextFailure(Error error) => error.Kind switch
+    {
+        ErrorKind.NotFound => NotFound(error.Message),
+        ErrorKind.Validation => BadRequest(error.Message),
+        _ => this.ToFailureResult(error)
+    };
 }
