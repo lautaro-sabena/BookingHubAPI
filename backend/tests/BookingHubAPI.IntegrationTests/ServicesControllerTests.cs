@@ -155,6 +155,53 @@ public class ServicesControllerTests : IClassFixture<BookingApiFactory>
     }
 
     [Fact]
+    public async Task GetServices_ShouldPageInNameOrderRegardlessOfCreationOrder()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        foreach (var name in new[] { "Cut", "Alpha", "Echo", "Bravo", "Delta" })
+        {
+            await CreateNamedAsync(owner, name);
+        }
+
+        var first = await ListAsync(owner, "/api/services?page=1&pageSize=2");
+        var second = await ListAsync(owner, "/api/services?page=2&pageSize=2");
+        var last = await ListAsync(owner, "/api/services?page=3&pageSize=2");
+
+        first.Items.Select(s => s.Name).Should().Equal("Alpha", "Bravo");
+        second.Items.Select(s => s.Name).Should().Equal("Cut", "Delta");
+        last.Items.Select(s => s.Name).Should().Equal("Echo");
+    }
+
+    [Fact]
+    public async Task GetAllServices_ShouldPageInStableNameOrderWithoutRepeatsOrGaps()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        var customer = await TestApi.RegisterCustomerAsync(_factory);
+        var created = new List<ServiceResponse>();
+        foreach (var name in new[] { "Zeta", "Alpha", "Mu", "Alpha" })
+        {
+            created.Add(await CreateNamedAsync(owner, name));
+        }
+
+        var listed = new List<ServiceResponse>();
+        for (var page = 1; ; page++)
+        {
+            var current = await ListAsync(customer, $"/api/services/all?page={page}&pageSize=3");
+            listed.AddRange(current.Items);
+            if (page >= current.TotalPages)
+            {
+                break;
+            }
+        }
+
+        listed.Select(s => s.Id).Should().OnlyHaveUniqueItems("paging over a stable order never repeats a row");
+        listed.Select(s => s.Id).Should().Contain(created.Select(s => s.Id), "paging never skips a row");
+        listed.Select(s => s.Name).Should().BeInAscendingOrder(StringComparer.Ordinal);
+        listed.Where(s => s.Name == "Alpha" && created.Any(c => c.Id == s.Id)).Select(s => s.Id)
+            .Should().BeInAscendingOrder("equal names fall back to the id");
+    }
+
+    [Fact]
     public async Task GetServices_WithSearch_ShouldFilterByNameSubstring()
     {
         var owner = await TestApi.RegisterOwnerAsync(_factory);

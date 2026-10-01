@@ -36,6 +36,7 @@ public class ReservationRepository : IReservationRepository
 
         return await query
             .OrderByDescending(r => r.StartTime)
+            .ThenBy(r => r.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -55,6 +56,7 @@ public class ReservationRepository : IReservationRepository
 
         return await query
             .OrderByDescending(r => r.StartTime)
+            .ThenBy(r => r.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

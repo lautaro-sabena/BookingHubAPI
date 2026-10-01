@@ -39,6 +39,8 @@ public class CompanyRepository : ICompanyRepository
     public async Task<IEnumerable<Company>> GetAllAsync(int page, int pageSize)
     {
         return await _context.Companies
+            .OrderBy(c => c.Name)
+            .ThenBy(c => c.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();

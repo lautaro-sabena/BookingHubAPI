@@ -214,11 +214,43 @@ public class WorkingHoursControllerTests : IClassFixture<BookingApiFactory>
     public async Task UpdateWorkingHours_WithDuplicateDay_ShouldReturnBadRequest()
     {
         var owner = await TestApi.RegisterOwnerAsync(_factory);
+        await PutHoursOkAsync(owner, Day(DayOfWeek.Tuesday, 8, 12));
 
         var response = await PutHoursAsync(owner, Day(DayOfWeek.Monday, 8, 12), Day(DayOfWeek.Monday, 14, 18));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await GetHoursAsync(owner)).Should().OnlyContain(h => !h.IsActive);
+        var hours = await GetHoursAsync(owner);
+        hours[(int)DayOfWeek.Tuesday].IsActive.Should().BeTrue("a rejected request must not replace the schedule");
+        hours[(int)DayOfWeek.Monday].IsActive.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("-01:00:00", "12:00:00")]
+    [InlineData("08:00:00", "1.01:00:00")]   // 25:00
+    public async Task UpdateWorkingHours_WithTimesOutsideTheDay_ShouldReturnBadRequestAndKeepTheSchedule(
+        string start, string end)
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+        await PutHoursOkAsync(owner, Day(DayOfWeek.Tuesday, 8, 12));
+        var body = $$"""[{"dayOfWeek":1,"startTime":"{{start}}","endTime":"{{end}}","isActive":true}]""";
+
+        var response = await owner.Client.PutAsync(
+            "/api/workinghours", new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+
+        await response.ShouldBeProblemAsync(
+            HttpStatusCode.BadRequest, "Working hours must be within 00:00 and 24:00 for Monday");
+        (await GetHoursAsync(owner))[(int)DayOfWeek.Tuesday].IsActive.Should().BeTrue("a rejected request must not replace the schedule");
+    }
+
+    [Fact]
+    public async Task UpdateWorkingHours_WithADayRunningUntilMidnight_ShouldBeAccepted()
+    {
+        var owner = await TestApi.RegisterOwnerAsync(_factory);
+
+        await PutHoursOkAsync(owner, Day(DayOfWeek.Friday, 0, 24));
+
+        (await GetHoursAsync(owner))[(int)DayOfWeek.Friday].Should().Be(new WorkingHoursResponse(
+            DayOfWeek.Friday, TimeSpan.Zero, new TimeSpan(24, 0, 0), true));
     }
 
     [Fact]
@@ -253,12 +285,13 @@ public class WorkingHoursControllerTests : IClassFixture<BookingApiFactory>
     public async Task UpdateWorkingHours_WithOutOfRangeDay_ShouldReturnBadRequest()
     {
         var owner = await TestApi.RegisterOwnerAsync(_factory);
+        await PutHoursOkAsync(owner, Day(DayOfWeek.Tuesday, 8, 12));
         const string body = """[{"dayOfWeek":9,"startTime":"08:00:00","endTime":"12:00:00","isActive":true}]""";
 
         var response = await owner.Client.PutAsync(
             "/api/workinghours", new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        (await GetHoursAsync(owner)).Should().OnlyContain(h => !h.IsActive);
+        (await GetHoursAsync(owner))[(int)DayOfWeek.Tuesday].IsActive.Should().BeTrue("a rejected request must not replace the schedule");
     }
 }

@@ -31,6 +31,8 @@ public class ServiceRepository : IServiceRepository
         return await _context.Services
             .Include(s => s.Company)
             .Where(s => s.IsActive && s.Company.IsActive)
+            .OrderBy(s => s.Name)
+            .ThenBy(s => s.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -55,6 +57,8 @@ public class ServiceRepository : IServiceRepository
         }
 
         return await query
+            .OrderBy(s => s.Name)
+            .ThenBy(s => s.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
