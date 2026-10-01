@@ -58,7 +58,13 @@ controllers, an empty Application layer, and thin tests around the risky paths.
   - #26 `refactor/hardening-26-ef-migrations` (base #25): a73d5a0 — T9 baseline + runbook. ~290 + generated.
   - #27 `refactor/hardening-27-data-migrations` (base #26): 167edff..04e37eb — T9 data migrations. ~127 + generated.
   - #28 `refactor/hardening-28-retry-schema-check` (base #27): 4edb560..21fd1c7 — T9b. ~263.
-  - Next slices continue from `refactor/project-hardening` on top of #28; retarget each PR to main after its parent merges.
+  - #29 `refactor/hardening-29-docs-security-headers` (base #28): 1b41b37..7025004 — T10, T10b. ~290.
+  - #30 `refactor/hardening-30-session-cookie` (base #29): ce42ad9 — T12 backend. ~756 (size:exception).
+  - #31 `refactor/hardening-31-forward-limit` (base #30): f49e4b9 — T12 ForwardLimit. ~80.
+  - #32 `refactor/hardening-32-frontend-proxy` (base #31): 2e7cf73..98bd45a — T12 frontend. ~490.
+  - #33 `refactor/hardening-33-session-robustness` (base #32): 50621da..9092122 — T12b. ~250.
+  - #34 `refactor/hardening-34-proxy-key` (base #33): dd31ae4..393df55 — T12b proxy key + outage fixes. ~380.
+  - Next slices continue from `refactor/project-hardening` on top of #34; retarget each PR to main after its parent merges.
 - RDD: on (global). Per-commit `gentle-ai review assess` after each work-unit commit.
 
 ## Tasks

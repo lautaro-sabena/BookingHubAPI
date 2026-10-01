@@ -1,22 +1,24 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useContext } from 'react';
 
-const { push, fetchCurrentUser, logoutRequest, loginRequest } = vi.hoisted(() => ({
+const { push, fetchCurrentUser, logoutRequest, loginRequest, registerRequest } = vi.hoisted(() => ({
   push: vi.fn(),
   fetchCurrentUser: vi.fn(),
   logoutRequest: vi.fn(),
   loginRequest: vi.fn(),
+  registerRequest: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('@/lib/auth', () => ({
   fetchCurrentUser,
   logoutRequest,
   loginRequest,
-  registerRequest: vi.fn(),
+  registerRequest,
 }));
 
+import { AUTH_EXPIRED_EVENT } from '@/lib/api';
 import { AuthContext, AuthProvider } from '../AuthProvider';
 
 const user = { id: 'u1', email: 'a@b.com', role: 'Owner' as const, companyId: 'c1' };
@@ -31,6 +33,7 @@ function Probe() {
       <span data-testid="logout-error">{String(auth.logoutError)}</span>
       <button onClick={() => void auth.logout()}>logout</button>
       <button onClick={() => void auth.login("a@b.com", "pw")}>login</button>
+      <button onClick={() => void auth.register("a@b.com", "pw", "Owner")}>register</button>
     </div>
   );
 }
@@ -92,6 +95,94 @@ describe('AuthProvider', () => {
 
     await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('clears the outage state after a successful register, so auth stops reporting loading', async () => {
+    fetchCurrentUser.mockRejectedValue(new Error('502'));
+    registerRequest.mockResolvedValue(user);
+    renderProvider();
+    await screen.findByRole('button', { name: 'Retry' });
+    expect(screen.getByTestId('state').textContent).toBe('loading');
+
+    screen.getByText('register').click();
+
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(push).toHaveBeenCalledWith('/dashboard');
+  });
+
+  describe('a restore that answers after the user signed in', () => {
+    function deferred<T>() {
+      let resolve!: (value: T) => void;
+      let reject!: (reason: unknown) => void;
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+
+    it('is ignored when it says "no session" (it must not sign the user out again)', async () => {
+      const restore = deferred<typeof user | null>();
+      fetchCurrentUser.mockReturnValue(restore.promise);
+      loginRequest.mockResolvedValue(user);
+      renderProvider();
+
+      screen.getByText('login').click();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+
+      restore.resolve(null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(screen.getByTestId('state').textContent).toBe('in:a@b.com');
+    });
+
+    it('is ignored when it fails (no outage banner, auth not stuck loading)', async () => {
+      const restore = deferred<typeof user | null>();
+      fetchCurrentUser.mockReturnValue(restore.promise);
+      loginRequest.mockResolvedValue(user);
+      renderProvider();
+
+      screen.getByText('login').click();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+
+      restore.reject(new Error('502'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.getByTestId('state').textContent).toBe('in:a@b.com');
+    });
+
+    it('is ignored when it comes from a Retry that the sign-in overtook', async () => {
+      fetchCurrentUser.mockRejectedValueOnce(new Error('502'));
+      renderProvider();
+      const retry = await screen.findByRole('button', { name: 'Retry' });
+
+      const late = deferred<typeof user | null>();
+      fetchCurrentUser.mockReturnValueOnce(late.promise);
+      loginRequest.mockResolvedValue(user);
+      retry.click();
+      screen.getByText('login').click();
+      await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+
+      late.resolve(null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(screen.getByTestId('state').textContent).toBe('in:a@b.com');
+    });
+  });
+
+  it('signs out and goes to /login when a protected call reports an expired session', async () => {
+    fetchCurrentUser.mockResolvedValue(user);
+    renderProvider();
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('in:a@b.com'));
+
+    act(() => {
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    });
+
+    await waitFor(() => expect(screen.getByTestId('state').textContent).toBe('out'));
+    expect(push).toHaveBeenCalledWith('/login');
   });
 
   describe('logout', () => {
