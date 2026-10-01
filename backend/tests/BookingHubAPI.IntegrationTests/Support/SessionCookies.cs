@@ -1,3 +1,4 @@
+using BookingHubAPI.API.Authentication;
 using FluentAssertions;
 
 namespace BookingHubAPI.IntegrationTests.Support;
@@ -25,7 +26,8 @@ public sealed record SetCookie(string Name, string Value, IReadOnlyList<string> 
 /// </summary>
 public static class SessionCookies
 {
-    public const string Name = "bookinghub_session";
+    /// <summary>The name the API uses by default, read from the options so a rename cannot desynchronise the tests.</summary>
+    public static readonly string Name = new SessionCookieOptions().Name;
 
     /// <summary>The session cookie set by the response, or null when it sets none.</summary>
     public static SetCookie? SessionCookie(this HttpResponseMessage response)

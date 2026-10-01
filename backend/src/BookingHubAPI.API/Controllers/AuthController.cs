@@ -60,7 +60,7 @@ public class AuthController : ControllerBase
             Guid.TryParse(companyClaim, out var companyId) ? companyId : null));
     }
 
-    private ActionResult SignIn(TokenResponse session)
+    private ActionResult SignIn(AuthSession session)
     {
         _sessionCookie.Append(Response, session.Token);
         return Ok(new UserDto(session.UserId, session.Email, session.Role, session.CompanyId));

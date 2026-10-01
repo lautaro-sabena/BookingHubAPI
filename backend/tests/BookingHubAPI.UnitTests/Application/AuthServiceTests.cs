@@ -238,7 +238,7 @@ public class AuthServiceTests
         var result = await _sut.LoginAsync(new LoginRequest("o@test.com", "Password123!"));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Be(new TokenResponse("token", user.Id, "o@test.com", "Owner", user.CompanyId));
+        result.Value.Should().Be(new AuthSession("token", user.Id, "o@test.com", "Owner", user.CompanyId));
         _jwt.Verify(j => j.GenerateToken(user.Id, "o@test.com", "Owner", user.CompanyId), Times.Once);
     }
 
