@@ -25,9 +25,6 @@ frontend/.vercel
 *.swp
 *.swo
 
-# Docker
-docker-compose.yml
-
 # IDE
 .vscode/
 

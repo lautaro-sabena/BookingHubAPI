@@ -1,3 +1,5 @@
+using BookingHubAPI.API.Configuration;
+using BookingHubAPI.Infrastructure.Configuration;
 using BookingHubAPI.Infrastructure.Data;
 using BookingHubAPI.Infrastructure.Repositories;
 using BookingHubAPI.Infrastructure.Auth;
@@ -18,15 +20,14 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtKey = builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey no configurado");
+var jwtKey = StartupConfigurationValidator.RequireJwtSecretKey(builder.Configuration);
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BookingHubAPI";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BookingHubAPI";
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-var connectionString = builder.Configuration["ConnectionStrings:DefaultConnection"] 
-    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection no configurado");
+var connectionString = StartupConfigurationValidator.RequireConnectionString(builder.Configuration);
 builder.Services.AddDbContext<BookingDbContext>(options =>
     options.UseNpgsql(connectionString, npgsqlOptions => 
         npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(30), errorCodesToAdd: new List<string>())));
@@ -95,22 +96,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-        
-        if (origins == null || origins.Length == 0)
-        {
-            var singleOrigin = builder.Configuration["Cors:AllowedOrigins"];
-            if (!string.IsNullOrEmpty(singleOrigin))
-            {
-                origins = new[] { singleOrigin };
-            }
-            else
-            {
-                origins = Array.Empty<string>();
-            }
-        }
-
-        policy.WithOrigins(origins)
+        // Supports both an indexed array (appsettings.json, or Cors__AllowedOrigins__0/__1/...
+        // env vars) and a single flat scalar value carrying a comma-separated list (e.g. one
+        // Cors__AllowedOrigins env var, as used by Render and docker-compose).
+        policy.WithOrigins(CorsOriginsResolver.Resolve(builder.Configuration))
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

@@ -10,7 +10,9 @@ services:
         value: Production
       - key: ConnectionStrings__DefaultConnection
         sync: false
-      - key: JWT_SECRET_KEY
+      # .NET binds environment variables with double underscores as config-section separators
+      # (Jwt__SecretKey -> configuration key "Jwt:SecretKey"); a flat JWT_SECRET_KEY never bound.
+      - key: Jwt__SecretKey
         sync: false
       - key: Jwt__Issuer
         value: BookingHubAPI
