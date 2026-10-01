@@ -1,3 +1,4 @@
+using BookingHubAPI.Application.Abstractions;
 using BookingHubAPI.Application.Common;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Domain.Entities;
@@ -12,13 +13,16 @@ public class WorkingHoursService : IWorkingHoursService
 
     private readonly IWorkingHoursRepository _workingHoursRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public WorkingHoursService(
         IWorkingHoursRepository workingHoursRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork)
     {
         _workingHoursRepository = workingHoursRepository;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result<IReadOnlyList<WorkingHoursResponse>>> GetWorkingHoursAsync(Guid userId)
@@ -55,15 +59,18 @@ public class WorkingHoursService : IWorkingHoursService
             return validationError;
         }
 
-        // Not atomic: delete-then-insert are separate writes (there is no unit of work yet). Tracked for T9.
-        await _workingHoursRepository.DeleteByCompanyIdAsync(companyId.Value);
-
-        // Inactive days are stored too, so the times the owner set for a disabled day survive.
-        foreach (var request in requests)
+        // Delete-then-insert is atomic: a failure keeps the previous schedule instead of leaving the company without one.
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            await _workingHoursRepository.CreateAsync(WorkingHours.Create(
-                companyId.Value, request.DayOfWeek, request.StartTime, request.EndTime, request.IsActive));
-        }
+            await _workingHoursRepository.DeleteByCompanyIdAsync(companyId.Value);
+
+            // Inactive days are stored too, so the times the owner set for a disabled day survive.
+            foreach (var request in requests)
+            {
+                await _workingHoursRepository.CreateAsync(WorkingHours.Create(
+                    companyId.Value, request.DayOfWeek, request.StartTime, request.EndTime, request.IsActive));
+            }
+        });
 
         var saved = requests
             .Select(r => new WorkingHoursResponse(r.DayOfWeek, r.StartTime, r.EndTime, r.IsActive))

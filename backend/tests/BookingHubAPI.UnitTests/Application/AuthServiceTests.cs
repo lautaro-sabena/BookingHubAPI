@@ -15,6 +15,7 @@ public class AuthServiceTests
     private readonly Mock<ICompanyRepository> _companies = new();
     private readonly Mock<IPasswordHasher> _hasher = new();
     private readonly Mock<IJwtService> _jwt = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly AuthService _sut;
 
     public AuthServiceTests()
@@ -30,7 +31,10 @@ public class AuthServiceTests
         _companies.Setup(c => c.CreateAsync(It.IsAny<Company>()))
             .ReturnsAsync((Company c) => { c.Id = Guid.NewGuid(); return c; });
 
-        _sut = new AuthService(_users.Object, _companies.Object, _hasher.Object, _jwt.Object);
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
+            .Returns((Func<Task> work) => work());
+
+        _sut = new AuthService(_users.Object, _companies.Object, _hasher.Object, _jwt.Object, _unitOfWork.Object);
     }
 
     // ---------- RegisterAsync ----------
@@ -121,6 +125,53 @@ public class AuthServiceTests
         created.Value.Email.Should().Be("new@test.com");
         _users.Verify(u => u.CreateAsync(It.Is<User>(x => x.Email == "new@test.com")), Times.Once);
         _companies.Verify(c => c.CreateAsync(It.Is<Company>(x => x.Name == "new@test.com's Company")), Times.Once);
+    }
+
+    [Fact]
+    public async Task Register_Owner_ShouldWriteUserAndCompanyInsideOneTransaction()
+    {
+        var insideTransaction = false;
+        var writesInside = new List<string>();
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
+            .Returns(async (Func<Task> work) =>
+            {
+                insideTransaction = true;
+                await work();
+                insideTransaction = false;
+            });
+        _users.Setup(u => u.CreateAsync(It.IsAny<User>()))
+            .ReturnsAsync((User u) => { writesInside.Add(insideTransaction ? "user" : "user-outside"); u.Id = Guid.NewGuid(); return u; });
+        _companies.Setup(c => c.CreateAsync(It.IsAny<Company>()))
+            .ReturnsAsync((Company c) => { writesInside.Add(insideTransaction ? "company" : "company-outside"); c.Id = Guid.NewGuid(); return c; });
+        _users.Setup(u => u.UpdateAsync(It.IsAny<User>()))
+            .ReturnsAsync((User u) => { writesInside.Add(insideTransaction ? "link" : "link-outside"); return u; });
+
+        await _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
+
+        writesInside.Should().Equal("user", "company", "link");
+        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Register_Owner_WhenTheCompanyWriteFails_ShouldPropagateAndNotIssueAToken()
+    {
+        _companies.Setup(c => c.CreateAsync(It.IsAny<Company>())).ThrowsAsync(new InvalidOperationException("db down"));
+
+        var act = () => _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("db down");
+        _users.Verify(u => u.UpdateAsync(It.IsAny<User>()), Times.Never);
+        _jwt.Verify(j => j.GenerateToken(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Register_WhenTheEmailIsTaken_ShouldNotOpenATransaction()
+    {
+        _users.Setup(u => u.ExistsAsync("o@test.com")).ReturnsAsync(true);
+
+        await _sut.RegisterAsync(new RegisterRequest("o@test.com", "Password123!", "Owner"));
+
+        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()), Times.Never);
     }
 
     private static bool Capture(Company company, out Company? captured)

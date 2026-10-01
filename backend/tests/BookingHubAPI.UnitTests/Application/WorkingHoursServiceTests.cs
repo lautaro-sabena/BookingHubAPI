@@ -1,3 +1,4 @@
+using BookingHubAPI.Application.Abstractions;
 using BookingHubAPI.Application.Common;
 using BookingHubAPI.Application.DTOs;
 using BookingHubAPI.Application.Services;
@@ -12,6 +13,7 @@ public class WorkingHoursServiceTests
 {
     private readonly Mock<IWorkingHoursRepository> _hours = new();
     private readonly Mock<IUserRepository> _users = new();
+    private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly WorkingHoursService _sut;
 
     private readonly Guid _companyId = Guid.NewGuid();
@@ -30,7 +32,10 @@ public class WorkingHoursServiceTests
         _hours.Setup(h => h.GetByCompanyIdAsync(_companyId)).ReturnsAsync(Array.Empty<WorkingHours>());
         _hours.Setup(h => h.CreateAsync(It.IsAny<WorkingHours>())).ReturnsAsync((WorkingHours w) => w);
 
-        _sut = new WorkingHoursService(_hours.Object, _users.Object);
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
+            .Returns((Func<Task> work) => work());
+
+        _sut = new WorkingHoursService(_hours.Object, _users.Object, _unitOfWork.Object);
     }
 
     private static WorkingHours Stored(DayOfWeek day, int start, int end, bool isActive = true) => new()
@@ -142,6 +147,48 @@ public class WorkingHoursServiceTests
         created[1].EndTime.Should().Be(new TimeSpan(7, 0, 0));
         created[2].StartTime.Should().Be(new TimeSpan(10, 0, 0));
         created[2].EndTime.Should().Be(new TimeSpan(20, 0, 0));
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_ShouldDeleteAndInsertInsideOneTransaction()
+    {
+        var insideTransaction = false;
+        var order = new List<string>();
+        _unitOfWork.Setup(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()))
+            .Returns(async (Func<Task> work) =>
+            {
+                insideTransaction = true;
+                await work();
+                insideTransaction = false;
+            });
+        _hours.Setup(h => h.DeleteByCompanyIdAsync(_companyId))
+            .Callback(() => order.Add(insideTransaction ? "delete" : "delete-outside"))
+            .Returns(Task.CompletedTask);
+        _hours.Setup(h => h.CreateAsync(It.IsAny<WorkingHours>()))
+            .Callback(() => order.Add(insideTransaction ? "insert" : "insert-outside"))
+            .ReturnsAsync((WorkingHours w) => w);
+
+        await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request(DayOfWeek.Monday, 8, 12), Request(DayOfWeek.Friday, 9, 17) });
+
+        order.Should().Equal("delete", "insert", "insert");
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_WhenAnInsertFails_ShouldPropagate()
+    {
+        _hours.Setup(h => h.CreateAsync(It.IsAny<WorkingHours>())).ThrowsAsync(new InvalidOperationException("db down"));
+
+        var act = () => _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request(DayOfWeek.Monday, 8, 12) });
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("db down");
+    }
+
+    [Fact]
+    public async Task ReplaceWorkingHours_WhenValidationFails_ShouldNotOpenATransaction()
+    {
+        await _sut.ReplaceWorkingHoursAsync(_owner.Id, new[] { Request(DayOfWeek.Monday, 12, 8) });
+
+        _unitOfWork.Verify(u => u.ExecuteInTransactionAsync(It.IsAny<Func<Task>>()), Times.Never);
     }
 
     [Fact]

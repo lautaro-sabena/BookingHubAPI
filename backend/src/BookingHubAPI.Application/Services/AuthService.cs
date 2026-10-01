@@ -12,17 +12,20 @@ public class AuthService : IAuthService
     private readonly ICompanyRepository _companyRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtService _jwtService;
+    private readonly IUnitOfWork _unitOfWork;
 
     public AuthService(
         IUserRepository userRepository,
         ICompanyRepository companyRepository,
         IPasswordHasher passwordHasher,
-        IJwtService jwtService)
+        IJwtService jwtService,
+        IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
         _companyRepository = companyRepository;
         _passwordHasher = passwordHasher;
         _jwtService = jwtService;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result<TokenResponse>> RegisterAsync(RegisterRequest request)
@@ -39,29 +42,33 @@ public class AuthService : IAuthService
             return Error.Validation("Email already registered");
         }
 
-        var user = new User
-        {
-            Email = email,
-            PasswordHash = _passwordHasher.Hash(request.Password),
-            Role = role
-        };
+        // Hashed once, outside the transaction: the delegate below may be re-run after a transient failure.
+        var passwordHash = _passwordHasher.Hash(request.Password);
+        User createdUser = null!;
 
-        var createdUser = await _userRepository.CreateAsync(user);
-
-        // Not atomic: the user, the company and the user update are three separate writes
-        // (there is no unit of work yet). Tracked for the transaction work in T9.
-        if (role == UserRole.Owner)
+        // The user, its default company and the link between them are written atomically, so a failure
+        // never leaves an owner without a company.
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
-            var company = new Company
+            createdUser = await _userRepository.CreateAsync(new User
             {
-                Name = $"{email}'s Company",
-                OwnerId = createdUser.Id,
-                TimeZone = "UTC"
-            };
-            var createdCompany = await _companyRepository.CreateAsync(company);
-            createdUser.CompanyId = createdCompany.Id;
-            await _userRepository.UpdateAsync(createdUser);
-        }
+                Email = email,
+                PasswordHash = passwordHash,
+                Role = role
+            });
+
+            if (role == UserRole.Owner)
+            {
+                var createdCompany = await _companyRepository.CreateAsync(new Company
+                {
+                    Name = $"{email}'s Company",
+                    OwnerId = createdUser.Id,
+                    TimeZone = "UTC"
+                });
+                createdUser.CompanyId = createdCompany.Id;
+                await _userRepository.UpdateAsync(createdUser);
+            }
+        });
 
         return ToTokenResponse(createdUser);
     }
