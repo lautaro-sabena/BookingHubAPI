@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { CalendarCheck, CalendarPlus, CalendarX2, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorNotice } from "@/components/ui/error-notice";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/skeleton";
+import { StatCard } from "@/components/ui/stat-card";
+import { ReservationRow } from "@/components/reservations/ReservationRow";
 import { useCancelReservation, useReservations } from "@/hooks/queries/useReservations";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { toCompanyLocalDate } from "@/lib/dateTime";
@@ -20,69 +24,69 @@ export default function CustomerDashboardPage() {
   };
 
   if (!allowed || isLoading) {
-    return <div>Loading...</div>;
+    return <LoadingState variant="list" />;
   }
 
+  const active = reservations.filter((r) => r.status === "Pending" || r.status === "Confirmed").length;
+  const cancelled = reservations.filter((r) => r.status === "Cancelled").length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">My Reservations</h1>
-        <Link href="/services">
-          <Button>
-            Book a Service
-          </Button>
-        </Link>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        title="My Reservations"
+        description="Your upcoming and past appointments in one place."
+        actions={
+          <Link href="/services">
+            <Button>
+              <CalendarPlus className="h-4 w-4" aria-hidden="true" />
+              Book a Service
+            </Button>
+          </Link>
+        }
+      />
       <ErrorNotice error={error ?? cancel.error} />
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Reservations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{reservations.length}</div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Total Reservations" value={reservations.length} icon={ListChecks} />
+        <StatCard label="Active" value={active} hint="Pending or confirmed" icon={CalendarCheck} />
+        <StatCard label="Cancelled" value={cancelled} icon={CalendarX2} />
       </div>
       {reservations.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Bookings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {reservations.map((reservation) => (
-                <div key={reservation.id} className="flex justify-between items-center p-4 border rounded-lg">
-                  <div>
-                    <p className="font-medium">{reservation.serviceName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {toCompanyLocalDate(reservation.startTime).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={reservation.status} />
-                    {(reservation.status === "Pending" || reservation.status === "Confirmed") && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleCancel(reservation.id)}
-                        disabled={cancel.isPending}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Your Bookings</h2>
+          <div className="space-y-3">
+            {reservations.map((reservation) => (
+              <ReservationRow
+                key={reservation.id}
+                title={reservation.serviceName}
+                when={toCompanyLocalDate(reservation.startTime).toLocaleString()}
+                status={reservation.status}
+                actions={
+                  (reservation.status === "Pending" || reservation.status === "Confirmed") && (
+                    <Button
+                      variant="destructive-soft"
+                      size="sm"
+                      onClick={() => handleCancel(reservation.id)}
+                      disabled={cancel.isPending}
+                    >
+                      Cancel
+                    </Button>
+                  )
+                }
+              />
+            ))}
+          </div>
+        </section>
       ) : (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No reservations yet. Browse services to make a booking!
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CalendarPlus}
+          title="Nothing booked yet"
+          description="No reservations yet. Browse services to make a booking!"
+          action={
+            <Link href="/services">
+              <Button>Browse services</Button>
+            </Link>
+          }
+        />
       )}
     </div>
   );

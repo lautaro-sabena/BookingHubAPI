@@ -1,9 +1,13 @@
 "use client";
 
+import Link from "next/link";
+import { CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorNotice } from "@/components/ui/error-notice";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/skeleton";
+import { ReservationRow } from "@/components/reservations/ReservationRow";
 import { useCancelReservation, useReservations } from "@/hooks/queries/useReservations";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { toCompanyLocalDate } from "@/lib/dateTime";
@@ -19,47 +23,42 @@ export default function BookingsPage() {
   };
 
   if (!allowed || isLoading) {
-    return <div>Loading...</div>;
+    return <LoadingState variant="list" />;
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">My Reservations</h1>
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+      <PageHeader title="My Reservations" />
       <ErrorNotice error={error ?? cancel.error} />
       {reservations.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {reservations.map((reservation) => (
-            <Card key={reservation.id}>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>{reservation.serviceName}</CardTitle>
-                  <StatusBadge status={reservation.status} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {toCompanyLocalDate(reservation.startTime).toLocaleString()}
-                </p>
-                {(reservation.status === "Pending" || reservation.status === "Confirmed") && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="mt-2"
-                    onClick={() => handleCancel(reservation.id)}
-                  >
+            <ReservationRow
+              key={reservation.id}
+              title={reservation.serviceName}
+              when={toCompanyLocalDate(reservation.startTime).toLocaleString()}
+              status={reservation.status}
+              actions={
+                (reservation.status === "Pending" || reservation.status === "Confirmed") && (
+                  <Button variant="destructive-soft" size="sm" onClick={() => handleCancel(reservation.id)}>
                     Cancel Reservation
                   </Button>
-                )}
-              </CardContent>
-            </Card>
+                )
+              }
+            />
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No reservations yet. Browse services to make a booking!
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={CalendarPlus}
+          title="Nothing booked yet"
+          description="No reservations yet. Browse services to make a booking!"
+          action={
+            <Link href="/services">
+              <Button>Browse services</Button>
+            </Link>
+          }
+        />
       )}
     </div>
   );
