@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { SuccessNotice } from "@/components/ui/notice";
+import { PageHeader } from "@/components/ui/page-header";
 import { CompanyInput, useUpdateCompany } from "@/hooks/queries/useCompany";
 
 /** Company details form. It takes its initial values once: key it by the company it edits. */
@@ -23,19 +25,15 @@ export function CompanyForm({ initial }: { initial: CompanyInput }) {
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">Edit Company</h1>
+    <div className="max-w-2xl space-y-6">
+      <PageHeader title="Edit Company" description="This is how your business appears to customers." />
       <Card>
         <CardHeader>
           <CardTitle>Company Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {update.isSuccess && (
-              <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">
-                Company updated successfully!
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {update.isSuccess && <SuccessNotice>Company updated successfully!</SuccessNotice>}
             <ErrorNotice error={update.error} fallback="Failed to update company" />
             <div className="space-y-2">
               <Label htmlFor="name">Company Name</Label>
@@ -54,8 +52,11 @@ export function CompanyForm({ initial }: { initial: CompanyInput }) {
                 placeholder="America/New_York"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                Use an IANA name like America/Argentina/Buenos_Aires. All slots are shown in this zone.
+              </p>
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3 border-t border-border/70 pt-5">
               <Button type="submit" disabled={update.isPending}>
                 {update.isPending ? "Saving..." : "Save Changes"}
               </Button>
