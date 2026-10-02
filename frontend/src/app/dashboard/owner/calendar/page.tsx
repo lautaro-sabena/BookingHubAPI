@@ -4,6 +4,8 @@ import { useState } from "react";
 import { MonthCalendar } from "@/components/calendar/MonthCalendar";
 import { OwnerReservationDetails } from "@/components/calendar/ReservationDetails";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/skeleton";
 import { useCancelReservation, useConfirmReservation, useReservations } from "@/hooks/queries/useReservations";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { Reservation } from "@/types";
@@ -16,7 +18,7 @@ export default function OwnerCalendarPage() {
   const [selected, setSelected] = useState<Reservation | null>(null);
 
   if (!allowed || reservations.isLoading) {
-    return <div>Loading...</div>;
+    return <LoadingState variant="list" />;
   }
 
   const act = (mutate: typeof confirm.mutate, reservation: Reservation) =>
@@ -24,9 +26,7 @@ export default function OwnerCalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Reservation Calendar</h1>
-      </div>
+      <PageHeader title="Reservation Calendar" description="Every booking for your business. Select one to confirm or cancel it." />
       <ErrorNotice error={reservations.error ?? confirm.error ?? cancel.error} />
 
       <MonthCalendar reservations={reservations.data ?? []} palette="themed" onSelect={setSelected} />

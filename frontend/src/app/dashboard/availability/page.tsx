@@ -3,6 +3,9 @@
 import { WorkingHoursForm } from "@/components/availability/WorkingHoursForm";
 import { Button } from "@/components/ui/button";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { LoadingState } from "@/components/ui/skeleton";
+import { PageHeader } from "@/components/ui/page-header";
+import { RotateCw } from "lucide-react";
 import { useSaveWorkingHours, useWorkingHours } from "@/hooks/queries/useWorkingHours";
 import { useRequireRole } from "@/hooks/useRequireRole";
 
@@ -12,18 +15,24 @@ export default function AvailabilityPage() {
   const save = useSaveWorkingHours();
 
   if (!allowed || isLoading) {
-    return <div>Loading...</div>;
+    return <LoadingState variant="form" />;
   }
 
   // Never offer the form without the real schedule: saving the closed default week would overwrite it.
   if (!week) {
     return (
-      <div className="max-w-2xl space-y-4">
-        <h1 className="text-2xl font-bold">Working Hours</h1>
-        <ErrorNotice error={error} fallback="Failed to load your working hours" />
-        <Button onClick={() => void refetch()} disabled={isFetching}>
-          {isFetching ? "Retrying..." : "Retry"}
-        </Button>
+      <div className="max-w-2xl space-y-6">
+        <PageHeader title="Working Hours" />
+        <div className="space-y-4 rounded-xl border border-border/70 bg-card p-6 shadow-card">
+          <ErrorNotice error={error} fallback="Failed to load your working hours" />
+          <p className="text-sm text-muted-foreground">
+            We need your saved schedule before you can edit it, so nothing gets overwritten.
+          </p>
+          <Button onClick={() => void refetch()} disabled={isFetching}>
+            <RotateCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
+            {isFetching ? "Retrying..." : "Retry"}
+          </Button>
+        </div>
       </div>
     );
   }

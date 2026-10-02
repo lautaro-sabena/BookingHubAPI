@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ServiceForm } from "@/components/services/ServiceForm";
 import { useCreateService } from "@/hooks/queries/useServices";
 import { useRequireRole } from "@/hooks/useRequireRole";
+import { LoadingState } from "@/components/ui/skeleton";
 
 const EMPTY_SERVICE = { name: "", description: "", durationMinutes: 30, price: 0 };
 
@@ -13,7 +14,7 @@ export default function NewServicePage() {
   const router = useRouter();
 
   if (!allowed) {
-    return <div>Loading...</div>;
+    return <LoadingState variant="form" />;
   }
 
   return (

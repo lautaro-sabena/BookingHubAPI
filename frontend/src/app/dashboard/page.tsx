@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { LoadingState } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
@@ -19,7 +20,7 @@ export default function DashboardPage() {
   }, [user, isLoading, router]);
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return <LoadingState />;
   }
 
   return null;

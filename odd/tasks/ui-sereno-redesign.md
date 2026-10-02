@@ -33,12 +33,17 @@ dark-mode gaps (e.g. hardcoded error colors) and a broken input focus ring.
 
 ## Delivery
 - Strategy: `ask-on-risk` → user chose `stacked-to-main` (2026-10-01).
-- Forecast: ~1,800 authored changed lines across 54 files → 4 chained PRs.
-- Slices (branch `refactor/ui-sereno-0N-*`, each based on the previous one):
-  1. `01-foundation` — T1
-  2. `02-navigation` — T2
-  3. `03-components` — T3
-  4. `04-screens` — T4 + T5
+- Forecast: ~1,800 authored changed lines across 54 files (actual: 2,796 across 57 incl. tests and this doc).
+- Work was built as 4 local slices, then re-sliced before push (user decision, 2026-10-01)
+  because 3 of them exceeded 400 lines. Same final tree; every slice passes tsc, lint and tests.
+  1. `01-tokens` — tokens, font, theme base, this doc
+  2. `02-ui-kit` — `components/ui/*` + StatusBadge tests
+  3. `03-navigation` — layout components, dashboard/services layouts + Sidebar tests
+  4. `04-booking-components` — BookingForm, SlotPicker + summary tests
+  5. `05-feature-components` — calendar, availability, services, company, reservations
+  6. `06-public-screens` — landing, login, register, catalogue, book
+  7. `07-customer-screens` — customer dashboard pages, /bookings
+  8. `08-owner-screens` — owner dashboard pages
 
 ## Tasks
 - [x] T1 Foundation: `.gitignore`, `globals.css`, `tailwind.config.ts`, `postcss.config.js`,
@@ -73,4 +78,4 @@ dark-mode gaps (e.g. hardcoded error colors) and a broken input focus ring.
 - Open follow-ups (not blocking): untested derived counts on the customer dashboard and pending copy on owner reservations (review SUGGESTIONs); `ReservationRow` `titleAs` prop to replace the `role="heading"` span in history; `themeColor` vs class theme.
 
 ## Next step
-Open the 4 chained PRs (`01-foundation` -> `main`, then each slice on the previous one) — user decision.
+Review and merge the 8 chained PRs bottom-up; then the open follow-ups.
