@@ -4,6 +4,8 @@ import { useState } from "react";
 import { MonthCalendar } from "@/components/calendar/MonthCalendar";
 import { CustomerReservationDetails } from "@/components/calendar/ReservationDetails";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { PageHeader } from "@/components/ui/page-header";
+import { LoadingState } from "@/components/ui/skeleton";
 import { useCancelReservation, useReservations } from "@/hooks/queries/useReservations";
 import { useRequireRole } from "@/hooks/useRequireRole";
 import { Reservation } from "@/types";
@@ -15,7 +17,7 @@ export default function CustomerCalendarPage() {
   const [selected, setSelected] = useState<Reservation | null>(null);
 
   if (!allowed || reservations.isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return <LoadingState variant="list" />;
   }
 
   const handleCancel = (reservation: Reservation) => {
@@ -25,12 +27,10 @@ export default function CustomerCalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">My Calendar</h1>
-      </div>
+      <PageHeader title="My Calendar" description="Your appointments by day. Select one to see the details." />
       <ErrorNotice error={reservations.error ?? cancel.error} />
 
-      <MonthCalendar reservations={reservations.data ?? []} palette="light" onSelect={setSelected} />
+      <MonthCalendar reservations={reservations.data ?? []} palette="themed" onSelect={setSelected} />
 
       {selected && (
         <CustomerReservationDetails
