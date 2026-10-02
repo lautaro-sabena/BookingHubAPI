@@ -5,6 +5,11 @@ import { isAxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { ServiceForm } from "@/components/services/ServiceForm";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { LoadingState } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import Link from "next/link";
+import { RotateCw, SearchX } from "lucide-react";
 import { useService, useUpdateService } from "@/hooks/queries/useServices";
 import { useRequireRole } from "@/hooks/useRequireRole";
 
@@ -16,19 +21,29 @@ export default function EditServicePage() {
   const router = useRouter();
 
   if (!allowed || isLoading) {
-    return <div>Loading...</div>;
+    return <LoadingState variant="form" />;
   }
 
   if (!service) {
     return (
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">Edit Service</h1>
+      <div className="max-w-2xl space-y-6">
+        <PageHeader title="Edit Service" />
         {isAxiosError(error) && error.response?.status === 404 ? (
-          <p className="text-muted-foreground">Service not found</p>
+          <EmptyState
+            icon={SearchX}
+            title="Service not found"
+            description="It may have been deleted."
+            action={
+              <Link href="/dashboard/services">
+                <Button variant="outline">Back to services</Button>
+              </Link>
+            }
+          />
         ) : error ? (
-          <div className="space-y-4">
+          <div className="space-y-4 rounded-xl border border-border/70 bg-card p-6 shadow-card">
             <ErrorNotice error={error} fallback="Failed to load the service" />
             <Button onClick={() => void refetch()} disabled={isFetching}>
+              <RotateCw className={isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
               {isFetching ? "Retrying..." : "Retry"}
             </Button>
           </div>
