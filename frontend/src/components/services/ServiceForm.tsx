@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorNotice } from "@/components/ui/error-notice";
+import { PageHeader } from "@/components/ui/page-header";
 import { ServiceInput } from "@/hooks/queries/useServices";
 
 interface ServiceFormProps {
@@ -43,24 +44,24 @@ export function ServiceForm({
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">{title}</h1>
+    <div className="max-w-2xl space-y-6">
+      <PageHeader title={title} description="Customers see the name, description, price and duration when they book." />
       <Card>
         <CardHeader>
           <CardTitle>Service Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <ErrorNotice error={error} fallback={errorFallback} />
             <div className="space-y-2">
               <Label htmlFor="name">Service Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Haircut and beard trim" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
+              <Input id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is included and who it is for" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="duration">Duration (minutes)</Label>
                 <Input
@@ -85,7 +86,7 @@ export function ServiceForm({
                 />
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3 border-t border-border/70 pt-5">
               <Button type="submit" disabled={saving}>
                 {saving ? savingLabel : submitLabel}
               </Button>
