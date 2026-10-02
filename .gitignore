@@ -39,3 +39,5 @@ openspec/
 .env
 .env.local
 *.env.local
+
+references/
